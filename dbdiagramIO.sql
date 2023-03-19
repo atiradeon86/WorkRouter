@@ -1,57 +1,57 @@
 Table Customer {
   CustomerID int [pk, increment]
-  FirstName varchar
-  MiddleName varchar
-  LastName varchar
-  Email varchar
-  PermitLogin int
-  CustomerPassword varchar
-  PhoneNumber varchar
-  SecondPhoneNumber varchar
-  IsNewsletter int
-  HasBuyerCard int
-  BuyerCardNummer varchar
-  isWorker int
-  isSubcontractor int
-  SubcontractorName varchar
-  isB2bParnter int
-  B2bPartnerName varchar
+  FirstName varchar(30)
+  MiddleName varchar(30)
+  LastName varchar(30)
+  Email varchar(90)
+  PermitLogin bit
+  CustomerPassword varchar(8)
+  PhoneNumber varchar(20)
+  SecondPhoneNumber varchar(20)
+  IsNewsletter bit
+  HasBuyerCard bit
+  BuyerCardNummer varchar(10)
+  isWorker bit
+  isSubcontractor bit
+  SubcontractorName varchar(100)
+  isB2bParnter bit
+  B2bPartnerName varchar(100)
  }
 
 Table DictCountry {
-  CountryCode varchar [pk]
-  CountryName varchar 
+  CountryCode char(2) [pk]
+  CountryName varchar(50) 
 }
 
 Table DictCounty{
   CountyID int [pk,increment]
-  CountryCode varchar 
-  CountyName varchar
+  CountryCode char(2) 
+  CountyName varchar(50)
 }
 
 Table PostalCode{
  PostalCodeID int [pk, increment]
- PostalCode varchar
+ PostalCode varchar(10)
  CountyID int
-CityName varchar
+ CityName varchar(50)
 }
 
  Table Service {
   ServiceCode int [pk,increment]
-  ServiceName varchar
+  ServiceName varchar(100)
   AddressID int
-  PhoneNumber varchar
-  Email varchar
+  PhoneNumber varchar(20)
+  Email varchar(90)
   ServiceFrom date
   ServiceTo date
  }
 
  Table Site{
-  SiteCode int [pk]
+  SiteCode smallint [pk]
   ServiceCode int 
-  SiteName varchar
-  PhoneNumber varchar
-  Email varchar
+  SiteName varchar(100)
+  PhoneNumber varchar(20)
+  Email varchar(90)
   AddressID int
   SiteFrom date
   SiteTo date
@@ -60,11 +60,11 @@ CityName varchar
 Table Address{
   AddressId int [pk, increment]
   CustomerID int
-  CountryCode varchar
-  PostalCode varchar
-  CityName varchar
-  AddressLine1 varchar
-  Addressline2 varchar
+  CountryCode char(2)
+  PostalCode varchar(10)
+  CityName varchar(50)
+  AddressLine1 varchar(100)
+  Addressline2 varchar(100)
   AddressFrom date
   AddressTo date
 
@@ -72,104 +72,104 @@ Table Address{
 
 Table Worksheet{
   WorksheetID int [pk, increment]
-  WorksheetRecorderID int
+  WorksheetRecorderID smallint
   CustomerID int
-  SiteCode int
-  WorksheetNummer varchar
-  IsExternal int
-  ExternalJobDescription varchar
+  SiteCode smallint
+  WorksheetNummer varchar(20)
+  IsExternal bit
+  ExternalJobDescription varchar(120)
   TimeOfIssue datetime
-  DeviceName varchar
-  DeviceSerialNummber varchar
-  JobDescription varchar
+  DeviceName varchar(120)
+  DeviceSerialNummber varchar(100)
+  JobDescription varchar(120)
   ServiceCode int
-  IsBilled int
-  IsLocked int
-  StatusCode int
+  IsBilled bit
+  IsLocked bit
+  StatusCode tinyint
   TimeOfCompletion datetime
 }
 
 Table WorksheetDetail {
-  WorksheetDetailID int [pk, increment]
+  WorksheetDetailID smallint [pk, increment]
   WorksheetID int
-  WorkerID int 
-  WorkID int 
-  Quantity int
+  WorkerID smallint 
+  WorkID smallint 
+  Quantity tinyint
   WorkerDescription varchar
   CompletionTime datetime
 }
 
 Table Worker {
-  WorkerID int [pk, increment]
+  WorkerID smallint [pk, increment]
   CustomerID int
   ServiceCode int
-  isInternalWorker int
-  isExternalWorker int
-  IsActive int
+  isInternalWorker bit
+  isExternalWorker bit
+  IsActive bit
 }
 
 Table WorkerConnection {
   WorkerConnectionID int [pk, increment]
-  PrincipalWorkerID int
-  WorkerID int
+  PrincipalWorkerID smallint
+  WorkerID smallint
   WorksheetID int
 }
 
 Table WorkerRight {
-  RightID int [pk, increment]
+  RightID smallint [pk, increment]
   ServiceCode int
-  SiteCode int
-  ISGlobalAdmin int
-  IsAdmin int
-  IsReader int
-  IsWriter int
+  SiteCode smallint
+  ISGlobalAdmin bit
+  IsAdmin bit
+  IsReader bit
+  IsWriter bit
 }
 
 Table WorkerRightConnection {
   WorkerRightConnectionID int [pk, increment]
-  WorkerID int
-  RightID int
+  WorkerID smallint
+  RightID smallint
 }
 
 Table DictWorksheetStatus {
-  StatusCode int [pk, increment]
-  StatusName varchar
-  StatusNameDE varchar
-  StatusNameEN varchar
+  StatusCode tinyint [pk, increment]
+  StatusName varchar(120)
+  StatusNameDE varchar(120)
+  StatusNameEN varchar(120)
 }
 
 Table AssetStock {
   AssetID int [pk,increment]
-  ComponentID int 
+  ComponentID smallint 
   PurchaseID int
-  VatID int
-  VatID2 int
-  VatID3 int
+  VatID tinyint
+  VatID2 tinyint
+  VatID3 tinyint
   ServiceCode int
-  SiteCode int
-  SerialNumber varchar
-  WarrantyYear int
+  SiteCode smallint
+  SerialNumber varchar(100)
+  WarrantyYear tinyint
   ListPrice money
   ListPrice2 money
   ListPrice3 money
-  Quantity int
+  Quantity tinyint
 }
 
 Table AssetPurchase
 {
   PurchaseID int [pk, increment]
   PurchaseDate date
-  BillNumber varchar
+  BillNumber varchar(40)
   BuyFrom int
 }
 
 Table AssetComponent {
-  ComponentID int [pk, increment] 
-  ComponentCode varchar
-  ComponentName varchar
-  ComponentNameDE varchar
-  ComponentNameEN varchar
-  SubCategoryID int
+  ComponentID smallint [pk, increment] 
+  ComponentCode varchar(10)
+  ComponentName varchar(120)
+  ComponentNameDE varchar(120)
+  ComponentNameEN varchar(120)
+  SubCategoryID tinyint
   SellPrice money
   SellPrice2 money
   SellPrice3 money
@@ -177,63 +177,62 @@ Table AssetComponent {
 }
 
 Table AssetComponentCategory{
-  AssteCompontentCategoryID int [pk, increment]
-  CategoryName varchar
-  CategoryNameDE varchar
-  CategoryNameEN varchar
+  AssteCompontentCategoryID tinyint [pk, increment]
+  CategoryName varchar(120)
+  CategoryNameDE varchar(120)
+  CategoryNameEN varchar(120)
   ModifiedDate datetime
 }
 
-
 Table AssetComponentSubcategory {
-  SubcategoryID int [pk, increment] 
-  AssteCompontentCategoryID int
-  ComponentSubcategoryName varchar
-  ComponentSubcategoryNameDE varchar
-  ComponentSubcategoryNameEN varchar
+  SubcategoryID tinyint [pk, increment] 
+  AssteCompontentCategoryID tinyint
+  ComponentSubcategoryName varchar(120)
+  ComponentSubcategoryNameDE varchar(120)
+  ComponentSubcategoryNameEN varchar(120)
   ModifiedDate datetime
 }
 
 Table UsedComponent {
   WorksheetID int [pk]
-  WorkerID int
+  WorkerID smallint
   AssetID int
-  Quantity int
+  Quantity tinyint
 }
 
 Table Work {
-  WorkID int [pk, increment] 
-  WorkCode varchar
-  WorkName varchar
-  WorkNameDE varchar
-  WorkNameEN varchar
-  WorkSubCategoryID int
-  iSHourlyWork int
+  WorkID smallint [pk, increment] 
+  WorkCode varchar(10)
+  WorkName varchar(120)
+  WorkNameDE varchar(120)
+  WorkNameEN varchar(120)
+  WorkSubCategoryID tinyint
+  iSHourlyWork bit
   HourlyWorkPrice money
   HourlyWorkPrice2 money
   HourlyWorkPrice3 money
-  VatID int
-  VatID2 int
-  VatID3 int
+  VatID tinyint
+  VatID2 tinyint
+  VatID3 tinyint
   Price money
   Price2 money
   Price3 money
 }
 
 Table WorkSubcategory {
-  WorkSubcategoryID int [pk, increment] 
-  WorkCategoryID int
-  SubcategoryName varchar
-  SubcategoryNameDE varchar
-  SubcategoryNameEN varchar
+  WorkSubcategoryID tinyint [pk, increment] 
+  WorkCategoryID tinyint
+  SubcategoryName varchar(120)
+  SubcategoryNameDE varchar(120)
+  SubcategoryNameEN varchar(120)
   ModifiedDate datetime
 }
 
 Table WorkCategory {
-  WorkCategoryID int [pk, increment]
-  CategoryName varchar
-  CategoryNameDE varchar
-  CategoryNameEN varchar
+  WorkCategoryID tinyint [pk, increment]
+  CategoryName varchar(120)
+  CategoryNameDE varchar(120)
+  CategoryNameEN varchar(120)
   ModifiedDate datetime
 }
 
@@ -242,16 +241,16 @@ Table Bill {
   BillID int [pk, increment]
   WorksheetID int
   SentStatus int
-  PaymmentStatus int
+  PaymmentStatus varchar(20)
   TS Timestamp
 }
 
 Table DictVAT {
-  VATID int [pk, increment]
-  VATName varchar
-  VATNameDE varchar
-  VATNameEN varchar
-  VATPercent int
+  VATID tinyint [pk, increment]
+  VATName varchar(120)
+  VATNameDE varchar(120)
+  VATNameEN varchar(120)
+  VATPercent decimal(3,3)
   DateFrom Date
   DateTo Date
 }
