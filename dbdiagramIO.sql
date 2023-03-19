@@ -24,7 +24,7 @@ Table DictCountry {
 }
 
 Table DictCounty{
-  CountyID int [pk]
+  CountyID int [pk,increment]
   CountryCode varchar 
   CountyName varchar
 }
@@ -126,6 +126,7 @@ Table WorkerRight {
 }
 
 Table WorkerRightConnection {
+  WorkerRightConnectionID int [pk, increment]
   WorkerID int
   RightID int
 }
