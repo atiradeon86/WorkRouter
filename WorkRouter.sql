@@ -18,7 +18,7 @@ CREATE TABLE Customer (
   SecondPhoneNumber varchar(20),
   IsNewsletter bit,
   HasBuyerCard bit,
-  BuyerCardNummer varchar(10),
+  BuyerCardNumber varchar(10),
   isWorker bit DEFAULT 0,
   isSubcontractor bit DEFAULT 0,
   SubcontractorName varchar(100),
@@ -75,9 +75,13 @@ GO
 
 ALTER TABLE Site WITH CHECK ADD  CONSTRAINT CK_Site_ToDate CHECK  (SiteTo>SiteFrom)
 
+
 CREATE TABLE Address (
   AddressId int PRIMARY KEY IDENTITY(1, 1),
   CustomerID int,
+  isMailingAddress bit DEFAULT 0,
+  isPrimaryAddress bit DEFAULT 0,
+  isBillingAddress bit DEFAULT 0,
   CountryCode char(2),
   PostalCode varchar(10),
   CityName varchar(50),
@@ -95,7 +99,7 @@ CREATE TABLE Worksheet (
   WorksheetRecorderID smallint,
   CustomerID int,
   SiteCode smallint,
-  WorksheetNummer varchar(20) UNIQUE,
+  WorksheetNumber varchar(20) UNIQUE,
   IsExternal bit DEFAULT 0,
   ExternalJobDescription varchar(120),
   TimeOfIssue datetime NOT NULL DEFAULT SYSDATETIME(),
@@ -426,6 +430,107 @@ GO
 ALTER TABLE AssetStock ADD FOREIGN KEY (VatID3) REFERENCES DictVAT (VATID)
 GO
 
+/* Functions */
+
+-- Generate the next WorksheetNumber
+GO
+
+CREATE FUNCTION dbo.GenerateWorksheetNumber (@prefix VARCHAR(3))
+RETURNS VARCHAR(20)
+AS
+BEGIN
+    DECLARE @counter INT
+    SELECT @counter = MAX(CAST(RIGHT(WorksheetNumber, LEN(WorksheetNumber) - LEN(@prefix)) AS INT))
+    FROM dbo.Worksheet
+    WHERE LEFT(WorksheetNumber, LEN(@prefix)) = @prefix
+
+    IF @counter IS NULL
+        SET @counter = 1
+    ELSE
+        SET @counter = @counter + 1
+
+    RETURN @prefix + RIGHT('0000000' + CAST(@counter AS VARCHAR(7)), 7)
+END
+
+GO
+SELECT dbo.GenerateWorksheetNumber('WS-')
+
+/* Stored Procedures*/
+
+-- StoredProcedure - CreateInternalWorksheet 
+GO
+
+CREATE OR ALTER PROCEDURE CreateInternalWorksheet 
+@Worksheetrecorder int,
+@CustomerID int,
+@SiteCode int,
+@ExteranJobDescription varchar(120),
+@DeviceName varchar(120),
+@DeviceSerialNummber varchar(100),
+@JobDescription varchar(120),
+@ServiceCode int
+
+AS
+BEGIN
+	DECLARE @Worksheetnumber varchar(10)
+	SET @Worksheetnumber = (SELECT dbo.GenerateWorksheetNumber('WS-'))
+	INSERT INTO dbo.Worksheet VALUES(@Worksheetrecorder,@CustomerID,@SiteCode,@Worksheetnumber,0,@ExteranJobDescription,SYSDATETIME(),@DeviceName,@DeviceSerialNummber,@JobDescription,@ServiceCode,0,0,NULL,NULL)
+END
+
+-- Stored Procedure WorksheetBasicData
+GO 
+
+CREATE OR ALTER PROCEDURE WorksheetBasicData 
+@Worksheetnumber varchar(10)
+AS
+SELECT * FROM Worksheet W
+INNER JOIN Service S ON W.ServiceCode = S.ServiceCode
+INNER JOIN Worker WK ON WK.WorkerID = WorksheetRecorderID
+INNER JOIN Customer C ON C.CustomerID = W.CustomerID
+WHERE WorksheetNumber = @Worksheetnumber
+
+GO
+
+-- StoredProcedure GetUsedComponentsByWorksheetNumber
+GO
+
+CREATE OR ALTER PROCEDURE GetUsedComponentsByWorksheetNumber
+@Worksheetnumber varchar(10)
+AS
+SELECT
+W.WorksheetNumber ,CONCAT (C.LastName + ' ', C.MiddleName + ' ' + C.FirstName)  AS WorkerName, AC.ComponentName ,AST.SerialNumber
+FROM Worksheet W
+INNER JOIN UsedComponent UC ON UC.WorksheetID = W.WorksheetID
+INNER JOIN AssetStock AST ON AST.AssetID = UC.AssetID
+INNER JOIN AssetComponent AC ON AC.ComponentID = AST.ComponentID
+INNER JOIN Worker WR ON WR.WorkerID = UC.WorkerID
+INNER JOIN Customer C ON C.CustomerID = WR.CustomerID
+WHERE WorksheetNumber = @Worksheetnumber
+GO
+
+-- Stored Procedure GetWorksByWorksheetNumber
+GO
+
+CREATE OR ALTER PROCEDURE GetWorksByWorksheetNumber
+@Worksheetnumber varchar(10)
+AS
+SELECT
+W.WorksheetNumber,CONCAT (C.LastName + ' ', C.MiddleName + ' ' + C.FirstName)  AS WorkerName,
+WO.WorkName AS WorkName, WO.Price,WO.HourlyWorkPrice,WD.Quantity,
+CASE 
+	WHEN
+	WO.iSHourlyWork = 0 THEN WO.Price
+	ELSE WO.HourlyWorkPrice * WD.Quantity
+END
+AS Price, WD.WorkerDescription
+FROM Worksheet W
+LEFT JOIN WorksheetDetail WD ON WD.WorksheetID = W.WorksheetID
+LEFT JOIN Work WO ON WO.WorkID = WD.WorkID
+LEFT JOIN Worker WR ON WR.WorkerID = WD.WorkerID
+LEFT JOIN Customer C ON C.CustomerID = WR.CustomerID
+WHERE WorksheetNumber = @Worksheetnumber
+GO
+
 /* Data upload testing ...*/
 
 GO
@@ -438,9 +543,9 @@ INSERT INTO dbo.DictCounty VALUES  ('HU', 'Zala')
 
 
 GO
-INSERT INTO dbo.Address  VALUES (NULL,'HU','8315','Gyenesdiás','Kossuth u. 12.','',GETDATE(),NULL)
-INSERT INTO dbo.Address  VALUES (NULL,'HU','8360','Keszthely','Tapolcai út. 74.','',GETDATE(),NULL)
-INSERT INTO dbo.Address  VALUES (NULL,'HU','8380','Hévíz','Tavirózsa u. 1.','',GETDATE(),NULL)
+INSERT INTO dbo.Address  VALUES (NULL,0,1,0,'HU','8315','Gyenesdiás','Kossuth u. 12.','',GETDATE(),NULL)
+INSERT INTO dbo.Address  VALUES (NULL,0,1,0,'HU','8360','Keszthely','Tapolcai út. 74.','',GETDATE(),NULL)
+INSERT INTO dbo.Address  VALUES (NULL,0,1,0,'HU','8380','Hévíz','Tavirózsa u. 1.','',GETDATE(),NULL)
 
 -- Add Service
 INSERT INTO dbo.Service VALUES ('Visionet Kft.',3,'+36 20 348-1071','info@visionet.hu',GETDATE(),NULL)
@@ -472,12 +577,27 @@ ORDER BY SE.ServiceName
 
 -- CustomerCreate Procedure later ...
 
+-- Multiple Address with different AddressType
+
 INSERT INTO Customer VALUES ('Adrienn','','Horvath','hadri83@gmail.com','1','1234','+3620 348-1072',NULL,'0','0',NULL,0,'0',NULL,'0',NULL)
 DECLARE @CustomerID int 
 SET @CustomerID = SCOPE_IDENTITY ()
-INSERT INTO dbo.Address (CustomerID,CountryCode,PostalCode,CityName,AddressLine1,Addressline2,AddressFrom,AddressTo) VALUES (@CustomerID,'HU','8315','Gyenesdiás','Lõtéri u. 9.','',GETDATE(),NULL)
-
+INSERT INTO dbo.Address (CustomerID,isMailingAddress,isPrimaryAddress,isBillingAddress,CountryCode,PostalCode,CityName,AddressLine1,Addressline2,AddressFrom,AddressTo) VALUES (@CustomerID,0,1,0,'HU','8315','Gyenesdiás','Lõtéri u. 9.','',GETDATE(),NULL)
+INSERT INTO dbo.Address (CustomerID,isMailingAddress,isPrimaryAddress,isBillingAddress,CountryCode,PostalCode,CityName,AddressLine1,Addressline2,AddressFrom,AddressTo) VALUES (@CustomerID,1,0,0,'HU','8360','Keszthely','Petõfi u. 10.','',GETDATE(),NULL)
+INSERT INTO dbo.Address (CustomerID,isMailingAddress,isPrimaryAddress,isBillingAddress,CountryCode,PostalCode,CityName,AddressLine1,Addressline2,AddressFrom,AddressTo) VALUES (@CustomerID,0,0,1,'HU','8315','Gyenesdiás','Faludy u. 11.','',GETDATE(),NULL)
 GO
+
+-- Check it
+
+-- AllAddress
+SELECT * FROM Address A INNER JOIN Customer C ON C.CustomerID = A.CustomerID WHERE C.CustomerID=1
+
+-- Billing Address
+SELECT * FROM Address A INNER JOIN Customer C ON C.CustomerID = A.CustomerID WHERE C.CustomerID=1 AND A.isBillingAddress =1
+
+-- Mailing Address
+SELECT * FROM Address A INNER JOIN Customer C ON C.CustomerID = A.CustomerID WHERE C.CustomerID=1 AND A.isMailingAddress =1
+
 
 INSERT INTO Customer VALUES ('Attila','','Horvath','atiradeon86@gmail.com','1','12345','+3620 348-1070',NULL,'0','0',NULL,1,'0',NULL,'0',NULL)
 DECLARE @CustomerID int 
@@ -509,8 +629,8 @@ SELECT C.CustomerID,CONCAT (C.LastName + ' ', C.MiddleName + ' ' + C.FirstName) 
 INNER JOIN dbo.Address A ON A.CustomerID = C.CustomerID 
 WHERE C.FirstName = 'Attila'
 
---SELECT * FROM Customer
---SELECT * FROM Address
+-- SELECT * FROM Customer
+-- SELECT * FROM Address
 
 -- Worker Registration (From existing customer, customer basedata required for Worker registration!)
 -- Add Worker (Worker ID 2 = Horváth Attila), Pl. Dropdonw + Select -> CustomerID
@@ -644,30 +764,24 @@ WHERE WC.WorkCategoryID = 2 AND WS.WorkSubcategoryID = 4
 
 
 -- Createing new Worksheet (Worker ID1 = Horváth Attila)
+
 GO
 
-INSERT INTO dbo.Worksheet VALUES(1,1,NULL,'WS-01',0,NULL,SYSDATETIME(),'Acer Nitro Notebook',NULL,'Nem indul a windows, linux telepítést kértek (Debian-t)',1,0,0,NULL,NULL)
+--INSERT INTO dbo.Worksheet VALUES(1,1,NULL,'WS-000001',0,NULL,SYSDATETIME(),'Acer Nitro Notebook',NULL,'Nem indul a windows, linux telepítést kértek (Debian-t)',1,0,0,NULL,NULL)
+EXEC CreateInternalWorksheet 1,1,NULL,NULL,'Acer Nitro Notebook',NULL,'Nem indul a windows, linux telepítést kértek (Debian-t)',1
 
-INSERT INTO dbo.Worksheet VALUES(1,1,NULL,'WS-02',0,NULL,SYSDATETIME(),'Asus TUF Gamin Notebook','SN-000123','SSD cserét kértek, és windows telepítést',1,0,0,NULL,NULL)
 
-SELECT * FROM Worksheet
+--INSERT INTO dbo.Worksheet VALUES(1,1,NULL,'WS-000002',0,NULL,SYSDATETIME(),'Asus TUF Gaming Notebook','SN-000123','SSD cserét kértek, és windows telepítést',1,0,0,NULL,NULL)
+EXEC CreateInternalWorksheet 1,1,NULL,NULL,'Asus TUF Gaming Notebook','SN-000123','SSD cserét kértek, és windows telepítést',1
+
+
+GO
+--SELECT * FROM Worksheet
 
 -- Get Basic Worksheet Data
 
-GO
-
-CREATE PROCEDURE WorksheetBasicData 
-@Worksheetnumber varchar(10)
-AS
-SELECT * FROM Worksheet W
-INNER JOIN Service S ON W.ServiceCode = S.ServiceCode
-INNER JOIN Worker WK ON WK.WorkerID = WorksheetRecorderID
-INNER JOIN Customer C ON C.CustomerID = W.CustomerID
-WHERE WorksheetNummer = @Worksheetnumber
-
-GO
-EXEC WorksheetBasicData @Worksheetnumber='WS-01'
-EXEC WorksheetBasicData @Worksheetnumber='WS-02'
+EXEC WorksheetBasicData @Worksheetnumber='WS-0000001'
+EXEC WorksheetBasicData @Worksheetnumber='WS-0000002'
 
 
 SELECT * FROM WorksheetDetail
@@ -683,31 +797,9 @@ INSERT INTO WorksheetDetail VALUES(2,2,5,2,NULL,NULL)
 
 
 -- Get Works BY Worksheet Number
-GO
 
-CREATE PROCEDURE GetWorksByWorksheetNumber
-@Worksheetnumber varchar(10)
-AS
-SELECT
-W.WorksheetNummer,CONCAT (C.LastName + ' ', C.MiddleName + ' ' + C.FirstName)  AS WorkerName,
-WO.WorkName AS WorkName, WO.Price,WO.HourlyWorkPrice,WD.Quantity,
-CASE 
-	WHEN
-	WO.iSHourlyWork = 0 THEN WO.Price
-	ELSE WO.HourlyWorkPrice * WD.Quantity
-END
-AS Price, WD.WorkerDescription
-FROM Worksheet W
-LEFT JOIN WorksheetDetail WD ON WD.WorksheetID = W.WorksheetID
-LEFT JOIN Work WO ON WO.WorkID = WD.WorkID
-LEFT JOIN Worker WR ON WR.WorkerID = WD.WorkerID
-LEFT JOIN Customer C ON C.CustomerID = WR.CustomerID
-WHERE WorksheetNummer = @Worksheetnumber
-GO
-
-EXEC GetWorksByWorksheetNumber @Worksheetnumber ='WS-01'
-EXEC GetWorksByWorksheetNumber @Worksheetnumber ='WS-02'
-
+EXEC GetWorksByWorksheetNumber @Worksheetnumber ='WS-0000001'
+EXEC GetWorksByWorksheetNumber @Worksheetnumber ='WS-0000002'
 
 -- Adding B2B Partners
 
@@ -796,20 +888,4 @@ UPDATE AssetStock SET Quantity =0 WHERE AssetID = 2
 
 -- Get Used Asset Data - with used asset)
 
-GO
-
-CREATE PROCEDURE GetUsedComponentsByWorksheetNumber
-@Worksheetnumber varchar(10)
-AS
-SELECT
-W.WorksheetNummer ,CONCAT (C.LastName + ' ', C.MiddleName + ' ' + C.FirstName)  AS WorkerName, AC.ComponentName ,AST.SerialNumber
-FROM Worksheet W
-INNER JOIN UsedComponent UC ON UC.WorksheetID = W.WorksheetID
-INNER JOIN AssetStock AST ON AST.AssetID = UC.AssetID
-INNER JOIN AssetComponent AC ON AC.ComponentID = AST.ComponentID
-INNER JOIN Worker WR ON WR.WorkerID = UC.WorkerID
-INNER JOIN Customer C ON C.CustomerID = WR.CustomerID
-WHERE WorksheetNummer = @Worksheetnumber
-GO
-
-EXEC GetUsedComponentsByWorksheetNumber @Worksheetnumber ='WS-02'
+EXEC GetUsedComponentsByWorksheetNumber @Worksheetnumber ='WS-0000002'

@@ -10,7 +10,7 @@ Table Customer {
   SecondPhoneNumber varchar(20)
   IsNewsletter bit
   HasBuyerCard bit
-  BuyerCardNummer varchar(10)
+  BuyerCardNumber varchar(10)
   isWorker bit
   isSubcontractor bit
   SubcontractorName varchar(100)
@@ -60,6 +60,9 @@ Table PostalCode{
 Table Address{
   AddressId int [pk, increment]
   CustomerID int
+  isMailingAddress bit
+  isPrimaryAddress bit
+  isBillingAddress bit
   CountryCode char(2)
   PostalCode varchar(10)
   CityName varchar(50)
@@ -75,12 +78,12 @@ Table Worksheet{
   WorksheetRecorderID smallint
   CustomerID int
   SiteCode smallint
-  WorksheetNummer varchar(20)
+  WorksheetNumber varchar(20)
   IsExternal bit
   ExternalJobDescription varchar(120)
   TimeOfIssue datetime
   DeviceName varchar(120)
-  DeviceSerialNummber varchar(100)
+  DeviceSerialNumber varchar(100)
   JobDescription varchar(120)
   ServiceCode int
   IsBilled bit
