@@ -1,4 +1,4 @@
--- WorkRouter V0.2  Beta 1
+-- WorkRouter V0.2  Beta 2
 
 CREATE DATABASE WorkRouter
 GO
@@ -435,7 +435,7 @@ GO
 -- Generate the next WorksheetNumber
 GO
 
-CREATE FUNCTION dbo.GenerateWorksheetNumber (@prefix VARCHAR(3))
+CREATE OR ALTER FUNCTION dbo.GenerateWorksheetNumber (@prefix VARCHAR(5))
 RETURNS VARCHAR(20)
 AS
 BEGIN
@@ -449,11 +449,10 @@ BEGIN
     ELSE
         SET @counter = @counter + 1
 
-    RETURN @prefix + RIGHT('0000000' + CAST(@counter AS VARCHAR(7)), 7)
+    RETURN @prefix + RIGHT('000000' + CAST(@counter AS VARCHAR(6)), 6)
 END
 
 GO
-SELECT dbo.GenerateWorksheetNumber('WS-')
 
 /* Stored Procedures*/
 
@@ -472,16 +471,30 @@ CREATE OR ALTER PROCEDURE CreateInternalWorksheet
 
 AS
 BEGIN
-	DECLARE @Worksheetnumber varchar(10)
-	SET @Worksheetnumber = (SELECT dbo.GenerateWorksheetNumber('WS-'))
+	DECLARE @CountryCode char(2)
+	SET @CountryCode = (SELECT DISTINCT A.CountryCode FROM Service S 
+	INNER JOIN Address A ON A.AddressId = S.AddressID 
+	WHERE S.ServiceCode = @ServiceCode)  
+	DECLARE @pr varchar(5)
+	SET @pr = CONCAT('WS-', @CountryCode)
+	DECLARE @Worksheetnumber varchar(12)
+	SET @Worksheetnumber = (SELECT dbo.GenerateWorksheetNumber(@pr))
 	INSERT INTO dbo.Worksheet VALUES(@Worksheetrecorder,@CustomerID,@SiteCode,@Worksheetnumber,0,@ExteranJobDescription,SYSDATETIME(),@DeviceName,@DeviceSerialNummber,@JobDescription,@ServiceCode,0,0,NULL,NULL)
 END
+
+-- Add HU Worksheet
+--EXEC CreateInternalWorksheet 1,1,NULL,NULL,'Asus TUF Gaming Notebook','SN-000123','SSD cserét kértek, és windows telepítést',1
+
+-- Add AT Worksheet
+--EXEC CreateInternalWorksheet 1,1,NULL,NULL,'Asus TUF Gaming Notebook','SN-000123','SSD cserét kértek, és windows telepítést',3
+
+SELECT * FROM Worksheet
 
 -- Stored Procedure WorksheetBasicData
 GO 
 
 CREATE OR ALTER PROCEDURE WorksheetBasicData 
-@Worksheetnumber varchar(10)
+@Worksheetnumber varchar(11)
 AS
 SELECT * FROM Worksheet W
 INNER JOIN Service S ON W.ServiceCode = S.ServiceCode
@@ -495,7 +508,7 @@ GO
 GO
 
 CREATE OR ALTER PROCEDURE GetUsedComponentsByWorksheetNumber
-@Worksheetnumber varchar(10)
+@Worksheetnumber varchar(11)
 AS
 SELECT
 W.WorksheetNumber ,CONCAT (C.LastName + ' ', C.MiddleName + ' ' + C.FirstName)  AS WorkerName, AC.ComponentName ,AST.SerialNumber
@@ -512,7 +525,7 @@ GO
 GO
 
 CREATE OR ALTER PROCEDURE GetWorksByWorksheetNumber
-@Worksheetnumber varchar(10)
+@Worksheetnumber varchar(11)
 AS
 SELECT
 W.WorksheetNumber,CONCAT (C.LastName + ' ', C.MiddleName + ' ' + C.FirstName)  AS WorkerName,
@@ -549,6 +562,16 @@ INSERT INTO dbo.Address  VALUES (NULL,0,1,0,'HU','8380','Hévíz','Tavirózsa u. 1.
 
 -- Add Service
 INSERT INTO dbo.Service VALUES ('Visionet Kft.',3,'+36 20 348-1071','info@visionet.hu',GETDATE(),NULL)
+
+-- ADD AT Service
+
+INSERT INTO dbo.Address  VALUES (NULL,0,1,0,'AT','4061','Pasching','Plus-Kauf-Straße 7','',GETDATE(),NULL)
+DECLARE @AddressID int 
+SET @AddressID = SCOPE_IDENTITY () 
+INSERT INTO dbo.Service VALUES ('Electronic4You',@AddressID,'+43 7229 22 358','info@electronic4you.at',GETDATE(),NULL)
+
+
+
 
 -- Add Site for service
 INSERT INTO Site VALUES ('1','1','Visionet 2. - Gyenesdiás','+36 000','gyenes@visionet.hu',1,GETDATE(),NULL)
@@ -780,11 +803,12 @@ GO
 
 -- Get Basic Worksheet Data
 
-EXEC WorksheetBasicData @Worksheetnumber='WS-0000001'
-EXEC WorksheetBasicData @Worksheetnumber='WS-0000002'
+EXEC WorksheetBasicData @Worksheetnumber='WS-HU000001'
+EXEC WorksheetBasicData @Worksheetnumber='WS-HU000002'
 
 
 SELECT * FROM WorksheetDetail
+GO
 
 INSERT INTO WorksheetDetail VALUES(1,1,4,1,'Hát igen a Windows az egy csoda ...',SYSDATETIME())
 INSERT INTO WorksheetDetail VALUES(1,1,3,1,'Végre egy értelmes munka ... ',SYSDATETIME())
@@ -798,8 +822,8 @@ INSERT INTO WorksheetDetail VALUES(2,2,5,2,NULL,NULL)
 
 -- Get Works BY Worksheet Number
 
-EXEC GetWorksByWorksheetNumber @Worksheetnumber ='WS-0000001'
-EXEC GetWorksByWorksheetNumber @Worksheetnumber ='WS-0000002'
+EXEC GetWorksByWorksheetNumber @Worksheetnumber ='WS-HU000001'
+EXEC GetWorksByWorksheetNumber @Worksheetnumber ='WS-HU000002'
 
 -- Adding B2B Partners
 
@@ -888,4 +912,4 @@ UPDATE AssetStock SET Quantity =0 WHERE AssetID = 2
 
 -- Get Used Asset Data - with used asset)
 
-EXEC GetUsedComponentsByWorksheetNumber @Worksheetnumber ='WS-0000002'
+EXEC GetUsedComponentsByWorksheetNumber @Worksheetnumber ='WS-HU000002'
