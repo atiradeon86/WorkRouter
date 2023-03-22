@@ -488,6 +488,8 @@ END
 -- Add AT Worksheet
 --EXEC CreateInternalWorksheet 1,1,NULL,NULL,'Asus TUF Gaming Notebook','SN-000123','SSD cserét kértek, és windows telepítést',3
 
+
+
 SELECT * FROM Worksheet
 
 -- Stored Procedure WorksheetBasicData
@@ -543,6 +545,35 @@ LEFT JOIN Worker WR ON WR.WorkerID = WD.WorkerID
 LEFT JOIN Customer C ON C.CustomerID = WR.CustomerID
 WHERE WorksheetNumber = @Worksheetnumber
 GO
+
+--StoredProcedure AddWork
+
+GO
+
+CREATE OR ALTER PROCEDURE AddWork
+@WorkCode varchar(10),
+@WorkName varchar(120),
+@WorkNameDE varchar(120),
+@WorkNameEN varchar(120),
+@WorkSubCategoryID tinyint,
+@IsHourlyWork bit,
+@HourlyWorkPrice money,
+@HourlyWorkPrice2 money,
+@HourlyWorkPrice3 money,
+@VatID tinyint,
+@VatID2 tinyint,
+@VatID3 tinyint,
+@Price money,
+@Price2 money,
+@Price3 money
+
+AS
+INSERT INTO Work(WorkCode,WorkName,WorkNameDE,WorkNameEN,WorkSubCategoryID,iSHourlyWork,HourlyWorkPrice,HourlyWorkPrice2,HourlyWorkPrice3,VatID,VatID2,VatID3,Price,Price2,Price3) 
+VALUES(
+@WorkCode,@WorkName,@WorkNameDE,@WorkNameEN,@WorkSubCategoryID,@IsHourlyWork,@HourlyWorkPrice,@HourlyWorkPrice2,@HourlyWorkPrice3,@VatID,@VatID2,@VatID3, @Price, @Price2,@Price3)
+
+GO
+
 
 /* Data upload testing ...*/
 
@@ -733,17 +764,31 @@ INSERT INTO DictVAT VALUES ('20%',NULL,NULL,0.200,'1988-01-01',NULL)
 
 -- Createing Works
 
-INSERT INTO Work VALUES('SSD-01','SSD csere','SSD Austausch','SSD Replace',1,0,NULL,NULL,NULL,1,2,2,3000,10,10)
-INSERT INTO Work VALUES('HDD-01','HDD csere','HDD Austausch','HDD Replace',1,0,NULL,NULL,NULL,1,2,2,3000,10,10)
-INSERT INTO Work VALUES('INS-01','Linux telepítés','Linux Installation','Linux Install',1,0,NULL,NULL,NULL,1,2,2,6000,20,20)
-INSERT INTO Work VALUES('INSP-01','Bevizsgálás','Inspektion','Inspection',1,1,3000,20,20,1,2,2,NULL,NULL,NULL)
-INSERT INTO Work VALUES('SWI-01','Szoftver telepítés','App Installation','Application Innstal',1,1,3000,20,20,1,2,2,NULL,NULL,NULL)
+EXEC AddWork 'SSD-01','SSD csere','SSD Austausch','SSD Replace',1,0,NULL,NULL,NULL,1,2,2,3000,10,10
+EXEC AddWork 'HDD-01','HDD csere','HDD Austausch','HDD Replace',1,0,NULL,NULL,NULL,1,2,2,3000,10,10
+EXEC AddWork 'INS-01','Linux telepítés','Linux Installation','Linux Install',1,0,NULL,NULL,NULL,1,2,2,6000,20,20
+EXEC AddWork 'INS-01','Bevizsgálás','Inspektion','Inspection',1,1,3000,20,20,1,2,2,NULL,NULL,NULL
+EXEC AddWork 'SWI-01','Szoftver telepítés','App Installation','Application Innstal',1,1,3000,20,20,1,2,2,NULL,NULL,NULL
 
-INSERT INTO Work VALUES('GPON-01','GPON Internet bekötés -1 Gigabit/s','GPON Internet installation -1 Gigabit/s','GPON Internet Installation -1 Gigabit/s',2,0,NULL,NULL,NULL,1,2,2,10000,40,40)
-INSERT INTO Work VALUES('DSL-01','DSL Internet bekötés -10 Megabit/s','DSL Internet installation -10 Megabit/s','DSL Internet Installation -10 Megabit/s',2,0,NULL,NULL,NULL,1,2,2,10000,40,40)
+EXEC AddWork 'GPON-01','GPON Internet bekötés -1 Gigabit/s','GPON Internet installation -1 Gigabit/s','GPON Internet Installation -1 Gigabit/s',2,0,NULL,NULL,NULL,1,2,2,10000,40,40
+EXEC AddWork 'DSL-01','DSL Internet bekötés -10 Megabit/s','DSL Internet installation -10 Megabit/s','DSL Internet Installation -10 Megabit/s',2,0,NULL,NULL,NULL,1,2,2,10000,40,40
 
-INSERT INTO Work VALUES('T-01','Tápegység csere','Netzteils Austausch','Powersupply replacement',3,0,NULL,NULL,NULL,1,2,2,5000,20,20)
-INSERT INTO Work VALUES('F-01','Fejállomás építés','Kopfstation Bau','Headstation construction',4,0,NULL,NULL,NULL,1,2,2,15000,40,40)
+EXEC AddWork 'T-01','Tápegység csere','Netzteils Austausch','Powersupply replacement',3,0,NULL,NULL,NULL,1,2,2,5000,20,20
+EXEC AddWork 'F-01','Fejállomás építés','Kopfstation Bau','Headstation construction',4,0,NULL,NULL,NULL,1,2,2,15000,40,40
+
+-- SELECT * FROM Work
+
+--INSERT INTO Work VALUES('SSD-01','SSD csere','SSD Austausch','SSD Replace',1,0,NULL,NULL,NULL,1,2,2,3000,10,10)
+--INSERT INTO Work VALUES('HDD-01','HDD csere','HDD Austausch','HDD Replace',1,0,NULL,NULL,NULL,1,2,2,3000,10,10)
+--INSERT INTO Work VALUES('INS-01','Linux telepítés','Linux Installation','Linux Install',1,0,NULL,NULL,NULL,1,2,2,6000,20,20)
+--INSERT INTO Work VALUES('INSP-01','Bevizsgálás','Inspektion','Inspection',1,1,3000,20,20,1,2,2,NULL,NULL,NULL)
+--INSERT INTO Work VALUES('SWI-01','Szoftver telepítés','App Installation','Application Innstal',1,1,3000,20,20,1,2,2,NULL,NULL,NULL)
+
+--INSERT INTO Work VALUES('GPON-01','GPON Internet bekötés -1 Gigabit/s','GPON Internet installation -1 Gigabit/s','GPON Internet Installation -1 Gigabit/s',2,0,NULL,NULL,NULL,1,2,2,10000,40,40)
+--INSERT INTO Work VALUES('DSL-01','DSL Internet bekötés -10 Megabit/s','DSL Internet installation -10 Megabit/s','DSL Internet Installation -10 Megabit/s',2,0,NULL,NULL,NULL,1,2,2,10000,40,40)
+
+--INSERT INTO Work VALUES('T-01','Tápegység csere','Netzteils Austausch','Powersupply replacement',3,0,NULL,NULL,NULL,1,2,2,5000,20,20)
+--INSERT INTO Work VALUES('F-01','Fejállomás építés','Kopfstation Bau','Headstation construction',4,0,NULL,NULL,NULL,1,2,2,15000,40,40)
 
 GO
 
