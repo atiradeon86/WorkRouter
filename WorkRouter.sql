@@ -668,12 +668,13 @@ GO
 CREATE OR ALTER PROCEDURE GetWorksheetBasicData 
 @Worksheetnumber varchar(11)
 AS
-SELECT * FROM Worksheet W
+SELECT TOP 1 W.WorksheetNumber,W.WorksheetID, W.CustomerID, CONCAT (C.LastName, ' ', C.FirstName) AS CustomName,CONCAT (A.PostalCode, ' ,', A.CityName, ' ,', A.AddressLine1) AS CustomerAddress,C.Email,C.PhoneNumber,W.TimeOfIssue, W.DeviceName, W.DeviceSerialNummber,W.JobDescription, S.ServiceName, CONCAT (C2.LastName,' ',C2.FirstName) AS RecordedByWorker,C2.PhoneNumber AS WorkerPhoneNumber FROM Worksheet W
 INNER JOIN Service S ON W.ServiceCode = S.ServiceCode
 INNER JOIN Worker WK ON WK.WorkerID = WorksheetRecorderID
 INNER JOIN Customer C ON C.CustomerID = W.CustomerID
+INNER JOIN Customer C2 ON C2.CustomerID = WK.CustomerID AND C2.isWorker =1
+INNER JOIN Address A ON A.CustomerID =C.CustomerID
 WHERE WorksheetNumber = @Worksheetnumber
-
 GO
 
 -- StoredProcedure GetUsedComponentsByWorksheetNumber
@@ -854,7 +855,7 @@ INSERT INTO dbo.Address (CustomerID,CountryCode,PostalCode,CityName,AddressLine1
 
 GO
 
-INSERT INTO Customer VALUES ('Kiss','','István','kiss.istvan@gmail.com','1','123','+3620 148-3070',NULL,'0','0',NULL,0,'0',NULL,'0',NULL)
+INSERT INTO Customer VALUES ('Kiss','','István','kiss.istvan@gmail.com','1','123','+3620 148-3070',NULL,'0','0',NULL,1,'0',NULL,'0',NULL)
 DECLARE @CustomerID int 
 SET @CustomerID = SCOPE_IDENTITY () 
 SELECT @CustomerID
@@ -1035,6 +1036,8 @@ GO
 
 EXEC GetWorksheetBasicData @Worksheetnumber='WS-HU000001'
 EXEC GetWorksheetBasicData @Worksheetnumber='WS-HU000002'
+--EXEC GetWorksheetBasicData @Worksheetnumber='WS-HU000100'
+--EXEC GetWorksheetBasicData @Worksheetnumber='WS-AT000056'
 
 
 SELECT * FROM WorksheetDetail
@@ -1212,11 +1215,7 @@ AS
 
 DECLARE @i int 
 SET @i = 0
-WHILE @i < @count
-
-	BEGIN 
-	SET @i = @i + 1
-
+BEGIN
 	DROP TABLE IF EXISTS #Names
 	CREATE TABLE #Names (Lastname varchar(100))
 	BULK INSERT #Names
@@ -1234,8 +1233,13 @@ WHILE @i < @count
 
 	-- SELECT * FROM #Names2
 
-	DROP TABLE IF EXISTS #TempData
+	
+END
+WHILE @i < @count
 
+	BEGIN 
+	SET @i = @i + 1
+	DROP TABLE IF EXISTS #TempData
 	SELECT TOP 1 N.Lastname,N2.Firstname, CONCAT(dbo.AccentConverter(N.Lastname), + '.', dbo.AccentConverter(Firstname), + '@gmail.com') AS Email,dbo.GenerateRandomPhoneNumber() AS PhoneNumber  
 	INTO #TempData
 	FROM #Names2 N2
@@ -1246,7 +1250,6 @@ WHILE @i < @count
 
 	SET @FirstName = (SELECT Firstname FROM #TempData)
 	SET @LastName = (SELECT Lastname FROM #TempData)
-	SET @PhoneNumber = (SELECT PhoneNumber FROM #TempData)
 	SET @PhoneNumber = (SELECT PhoneNumber FROM #TempData)
 	SET @Email = (SELECT Email FROM #TempData)
 
@@ -1280,8 +1283,6 @@ END
 -- SELECT * FROM Customer
 -- SELECT * FROM Worksheet
 -- SELECT * FROM Address
-
-
 
 
 
