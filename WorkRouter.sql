@@ -1,4 +1,4 @@
--- WorkRouter V0.2  Beta 2
+-- WorkRouter V0.2  Beta 3
 
 CREATE DATABASE WorkRouter
 GO
@@ -456,10 +456,10 @@ GO
 
 /* Stored Procedures*/
 
--- StoredProcedure - CreateInternalWorksheet 
+-- StoredProcedure - CreateWorksheet 
 GO
 
-CREATE OR ALTER PROCEDURE CreateInternalWorksheet 
+CREATE OR ALTER PROCEDURE CreateWorksheet 
 @Worksheetrecorder int,
 @CustomerID int,
 @SiteCode int,
@@ -480,22 +480,192 @@ BEGIN
 	DECLARE @Worksheetnumber varchar(12)
 	SET @Worksheetnumber = (SELECT dbo.GenerateWorksheetNumber(@pr))
 	INSERT INTO dbo.Worksheet VALUES(@Worksheetrecorder,@CustomerID,@SiteCode,@Worksheetnumber,0,@ExteranJobDescription,SYSDATETIME(),@DeviceName,@DeviceSerialNummber,@JobDescription,@ServiceCode,0,0,NULL,NULL)
+
 END
 
+GO
+
+CREATE OR ALTER VIEW vRandomDeviceType
+AS SELECT TOP 1 value FROM STRING_SPLIT('Asus PC,Lenovo PC,Acer Nitro5 Notebook,Asus ROG Zephyrus G15,Asus ROG Zephyrus G17', ',') order by newid()
+
+-- SELECT * FROM vRandomDeviceType
+GO
+CREATE OR ALTER VIEW vRandomJobDescription
+AS SELECT TOP 1 value FROM STRING_SPLIT('Nem indul a windows 10,Nem indul a windows 11,Túl lassú a gép,Office telepítést kértek,Linux telepítést kértek adatmentéssel', ',') order by newid()
+
+-- SELECT * FROM vRandomJobDescription
+
+GO
+CREATE OR ALTER VIEW vRandomWorkerDescription
+AS SELECT TOP 1 value FROM STRING_SPLIT('Valami megjegyzés .,Valami megjegyzés ..,Valami megjegyzés ...', ',') order by newid()
+
+-- SELECT * FROM vRandomWorkerDescription
+
+GO
+CREATE OR ALTER VIEW vRandomStreet
+AS SELECT TOP 1 value FROM STRING_SPLIT('Kossuth u.,Petõfi u.,Arany János u.', ',') order by newid()
+
+-- SELECT * FROM vRandomStreet
+
+
+-- Creating Usable random function
+
+GO
+
+CREATE OR ALTER VIEW vRand
+AS 
+SELECT rand() AS rRand
+
+GO
+
+CREATE OR ALTER FUNCTION dbo.ReturnRand()
+RETURNS REAL
+AS
+BEGIN
+	DECLARE @R REAL
+	SET @R = (SELECT rRand FROM vRand)
+	return @R
+END
+
+GO
+
+-- Return Random int Function (in range)
+GO
+
+CREATE OR ALTER FUNCTION dbo.ReturnRandFromTo (@From int, @To int)
+RETURNS INT
+AS
+BEGIN
+	DECLARE @RandInt int
+	SET @RandInt = (SELECT FLOOR(dbo.ReturnRand() * (@To-@From + 1)) + @From)
+RETURN (@RandInt)
+END
+
+-- SELECT dbo.ReturnRandFromTo(1,5)
+
+
+GO
+-- Create RandomDateTime Function
+
+CREATE OR ALTER FUNCTION dbo.RandomDateTime (@FromDate DATETIME,@ToDate DATETIME) 
+RETURNS datetime
+AS
+BEGIN
+	DECLARE @RadomizedDateTime DATETIME
+	DECLARE @Seconds INT = DATEDIFF(SECOND, @FromDate, @ToDate)
+	DECLARE @Random INT = ROUND(((@Seconds-1) * dbo.ReturnRand()), 0)
+	SET @RadomizedDateTime = (SELECT DATEADD(SECOND, @Random, @FromDate))
+
+	RETURN(@RadomizedDateTime)
+END
+
+-- Stored Procedure AddRandomWorkToWorksheet ( In this case i need the work completion time. In base case the CompletionTime is the actual SYSDATETIME() )
+GO
+
+CREATE OR ALTER PROCEDURE AddRandomWorkToWorksheet
+	@WorksheetID int,
+	@WorkerID smallint,
+	@WorkID smallint,
+	@Quantity tinyint,
+	@WorkerDescription varchar(120),
+	@CompletionTime datetime
+
+AS 
+
+INSERT INTO WorksheetDetail(WorksheetID,WorkerID,WorkID,Quantity,WorkerDescription,CompletionTime) VALUES (@WorksheetId,@WorkerID,@WorkID,@Quantity,@WorkerDescription,@CompletionTime)
+
+GO
+
+-- Stored Procedure CreateRandomWorksheet
+
+-- This SP Generates random worksheets, with random works
+-- Based ON:
+-- Function: GenerateWorksheetNumber(),RandomDateTime(),ReturnRandFromTo(),ReturnRand()
+-- View: vRandomDeviceType, vRandomJobDescription
+-- Stored Procedure: AddRandomWorkToWorksheet
+
+CREATE OR ALTER PROCEDURE CreateRandomWorksheet
+@count int
+AS
+	BEGIN
+	DECLARE @i int 
+	SET @i = 0
+	DECLARE @Worksheetrecorder int,@CustomerID int,@SiteCode int,@ExteranJobDescription varchar(120),@DeviceName varchar(120),@DeviceSerialNumber varchar(100),@JobDescription varchar(120),@ServiceCode int
+	WHILE @i < @count
+	BEGIN
+		-- PRINT 'Debug';
+		SET @i = @i + 1
+		SET @CustomerID = (SELECT dbo.ReturnRandFromTo(7,3006))
+		SET @ServiceCode = (SELECT dbo.ReturnRandFromTo(1,3))
+		SET @DeviceName = (SELECT * FROM vRandomDeviceType)
+		SET @DeviceSerialNumber = (SELECT dbo.ReturnRandFromTo(35000,95000))
+		SET @JobDescription = (SELECT * FROM vRandomJobDescription)
+		
+		-- Get Country Code for Worksheet Number
+		DECLARE @CountryCode char(2)
+		SET @CountryCode = (SELECT DISTINCT A.CountryCode FROM Service S 
+		INNER JOIN Address A ON A.AddressId = S.AddressID 
+		WHERE S.ServiceCode = @ServiceCode)  
+
+		DECLARE @pr varchar(5)
+		SET @pr = CONCAT('WS-', @CountryCode)
+		
+		-- Get the next worksheet number
+		DECLARE @Worksheetnumber varchar(12)
+		SET @Worksheetnumber = (SELECT dbo.GenerateWorksheetNumber(@pr))
+	
+		INSERT INTO dbo.Worksheet VALUES(@Worksheetrecorder,@CustomerID,@SiteCode,@Worksheetnumber,0,@ExteranJobDescription, (SELECT dbo.RandomDateTime('2015-01-01 08:00:00','2023-03-26 18:00:00')),@DeviceName,@DeviceSerialNumber,@JobDescription,@ServiceCode,0,0,NULL,NULL)
+		
+		-- Get the last WorksheetID
+		DECLARE @WorksheetId int
+		SET @WorksheetId = (SELECT SCOPE_IDENTITY())
+		--Debug Print @WorksheetId
+
+		DECLARE @RandomWorkId int, @RandomQuantity int, @RandomWorkerDescription varchar(120)	
+		DECLARE @ModifiedCompletionTime datetime
+		DECLARE @TimeOfIssue datetime
+
+		SET @TimeOfIssue  = (SELECT TimeOfIssue FROM Worksheet WHERE WorksheetID = @WorksheetId)
+		SET @ModifiedCompletionTime = (SELECT DATEADD(HOUR,-3,@TimeOfIssue))
+
+		-- Add random data to worksheet detail based on worksheetID
+		DECLARE @wi int, @wcount int
+		SET @wi = 0
+		SET @wcount = (SELECT dbo.ReturnRandFromTo(1,3))
+		
+		WHILE @wi < @wcount
+		BEGIN
+			SET @wi = @wi + 1
+			SET @Worksheetrecorder =  (SELECT dbo.ReturnRandFromTo(1,2))
+			-- (@RandomWorkId 4,5 = Bevizsgálás / Szoftver telepítés )
+			SET @RandomWorkId = (SELECT dbo.ReturnRandFromTo(4,5))
+			SET @RandomQuantity = (SELECT dbo.ReturnRandFromTo(1,3))
+			SET @RandomWorkerDescription = (SELECT * FROM vRandomWorkerDescription)
+			EXEC AddRandomWorkToWorksheet @WorksheetID = @WorksheetId, @WorkerID = @Worksheetrecorder, @WorkID = @RandomWorkId, @Quantity = @RandomQuantity, @WorkerDescription = @RandomWorkerDescription, @CompletionTIme = @ModifiedCompletionTime
+		END
+	END
+END
+
+GO
+
+-- Generating 10 random Worksheet with random works
+-- EXEC CreateRandomWorksheet 10
+
+-- SELECT * FROM Worksheet
+-- SELECT * FROM Work
+-- SELECT * FROM WorksheetDetail
+
 -- Add HU Worksheet
---EXEC CreateInternalWorksheet 1,1,NULL,NULL,'Asus TUF Gaming Notebook','SN-000123','SSD cserét kértek, és windows telepítést',1
+--EXEC CreateWorksheet 1,1,NULL,NULL,'Asus TUF Gaming Notebook','SN-000123','SSD cserét kértek, és windows telepítést',1
 
 -- Add AT Worksheet
---EXEC CreateInternalWorksheet 1,1,NULL,NULL,'Asus TUF Gaming Notebook','SN-000123','SSD cserét kértek, és windows telepítést',3
+--EXEC CreateWorksheet 1,1,NULL,NULL,'Asus TUF Gaming Notebook','SN-000123','SSD cserét kértek, és windows telepítést',3
 
-
-
-SELECT * FROM Worksheet
 
 -- Stored Procedure WorksheetBasicData
 GO 
 
-CREATE OR ALTER PROCEDURE WorksheetBasicData 
+CREATE OR ALTER PROCEDURE GetWorksheetBasicData 
 @Worksheetnumber varchar(11)
 AS
 SELECT * FROM Worksheet W
@@ -530,14 +700,14 @@ CREATE OR ALTER PROCEDURE GetWorksByWorksheetNumber
 @Worksheetnumber varchar(11)
 AS
 SELECT
-W.WorksheetNumber,CONCAT (C.LastName + ' ', C.MiddleName + ' ' + C.FirstName)  AS WorkerName,
-WO.WorkName AS WorkName, WO.Price,WO.HourlyWorkPrice,WD.Quantity,
+W.WorksheetNumber,CONCAT (C.LastName + ' ', C.MiddleName + ' ' + C.FirstName)  AS Worker,
+WO.WorkName AS WorkName, IIF(WO.HourlyWorkPrice IS NULL,WO.Price,WO.HourlyWorkPrice) AS Price,WD.Quantity,
 CASE 
 	WHEN
 	WO.iSHourlyWork = 0 THEN WO.Price
 	ELSE WO.HourlyWorkPrice * WD.Quantity
 END
-AS Price, WD.WorkerDescription
+AS SubTotal, WD.WorkerDescription
 FROM Worksheet W
 LEFT JOIN WorksheetDetail WD ON WD.WorksheetID = W.WorksheetID
 LEFT JOIN Work WO ON WO.WorkID = WD.WorkID
@@ -546,11 +716,11 @@ LEFT JOIN Customer C ON C.CustomerID = WR.CustomerID
 WHERE WorksheetNumber = @Worksheetnumber
 GO
 
---StoredProcedure AddWork
+--StoredProcedure CreateWork
 
 GO
 
-CREATE OR ALTER PROCEDURE AddWork
+CREATE OR ALTER PROCEDURE CreateWork
 @WorkCode varchar(10),
 @WorkName varchar(120),
 @WorkNameDE varchar(120),
@@ -573,6 +743,23 @@ VALUES(
 @WorkCode,@WorkName,@WorkNameDE,@WorkNameEN,@WorkSubCategoryID,@IsHourlyWork,@HourlyWorkPrice,@HourlyWorkPrice2,@HourlyWorkPrice3,@VatID,@VatID2,@VatID3, @Price, @Price2,@Price3)
 
 GO
+
+-- StoredProcedure CreateWorkToWorksheet
+GO
+CREATE OR ALTER PROCEDURE CreateWorkToWorksheet
+	@WorkshhetID int,
+	@WorkerID smallint,
+	@WorkID smallint,
+	@Quantity tinyint,
+	@WorkerDescription varchar(120)
+
+AS 
+DECLARE @CompletionTime datetime
+SET @CompletionTime = (SELECT SYSDATETIME())
+INSERT INTO WorksheetDetail(WorksheetID,WorkerID,WorkID,Quantity,WorkerDescription,CompletionTime) VALUES (@WorkshhetID,@WorkerID,@WorkID,@Quantity,@WorkerDescription,@CompletionTime)
+GO
+
+-- EXEC CreateWorkToWorksheet @WorkshhetID = 1, @WorkerID = 1, @WorkID = 4, @Quantity = 2, @WorkerDescription = 'Hát igen a Windows az egy csoda'
 
 
 /* Data upload testing ...*/
@@ -600,8 +787,6 @@ INSERT INTO dbo.Address  VALUES (NULL,0,1,0,'AT','4061','Pasching','Plus-Kauf-St
 DECLARE @AddressID int 
 SET @AddressID = SCOPE_IDENTITY () 
 INSERT INTO dbo.Service VALUES ('Electronic4You',@AddressID,'+43 7229 22 358','info@electronic4you.at',GETDATE(),NULL)
-
-
 
 
 -- Add Site for service
@@ -764,17 +949,17 @@ INSERT INTO DictVAT VALUES ('20%',NULL,NULL,0.200,'1988-01-01',NULL)
 
 -- Createing Works
 
-EXEC AddWork 'SSD-01','SSD csere','SSD Austausch','SSD Replace',1,0,NULL,NULL,NULL,1,2,2,3000,10,10
-EXEC AddWork 'HDD-01','HDD csere','HDD Austausch','HDD Replace',1,0,NULL,NULL,NULL,1,2,2,3000,10,10
-EXEC AddWork 'INS-01','Linux telepítés','Linux Installation','Linux Install',1,0,NULL,NULL,NULL,1,2,2,6000,20,20
-EXEC AddWork 'INS-01','Bevizsgálás','Inspektion','Inspection',1,1,3000,20,20,1,2,2,NULL,NULL,NULL
-EXEC AddWork 'SWI-01','Szoftver telepítés','App Installation','Application Innstal',1,1,3000,20,20,1,2,2,NULL,NULL,NULL
+EXEC CreateWork 'SSD-01','SSD csere','SSD Austausch','SSD Replace',1,0,NULL,NULL,NULL,1,2,2,3000,10,10
+EXEC CreateWork 'HDD-01','HDD csere','HDD Austausch','HDD Replace',1,0,NULL,NULL,NULL,1,2,2,3000,10,10
+EXEC CreateWork 'INS-01','Linux telepítés','Linux Installation','Linux Install',1,0,NULL,NULL,NULL,1,2,2,6000,20,20
+EXEC CreateWork 'INS-01','Bevizsgálás','Inspektion','Inspection',1,1,3000,20,20,1,2,2,NULL,NULL,NULL
+EXEC CreateWork 'SWI-01','Szoftver telepítés','App Installation','Application Innstal',1,1,3000,20,20,1,2,2,NULL,NULL,NULL
 
-EXEC AddWork 'GPON-01','GPON Internet bekötés -1 Gigabit/s','GPON Internet installation -1 Gigabit/s','GPON Internet Installation -1 Gigabit/s',2,0,NULL,NULL,NULL,1,2,2,10000,40,40
-EXEC AddWork 'DSL-01','DSL Internet bekötés -10 Megabit/s','DSL Internet installation -10 Megabit/s','DSL Internet Installation -10 Megabit/s',2,0,NULL,NULL,NULL,1,2,2,10000,40,40
+EXEC CreateWork 'GPON-01','GPON Internet bekötés -1 Gigabit/s','GPON Internet installation -1 Gigabit/s','GPON Internet Installation -1 Gigabit/s',2,0,NULL,NULL,NULL,1,2,2,10000,40,40
+EXEC CreateWork 'DSL-01','DSL Internet bekötés -10 Megabit/s','DSL Internet installation -10 Megabit/s','DSL Internet Installation -10 Megabit/s',2,0,NULL,NULL,NULL,1,2,2,10000,40,40
 
-EXEC AddWork 'T-01','Tápegység csere','Netzteils Austausch','Powersupply replacement',3,0,NULL,NULL,NULL,1,2,2,5000,20,20
-EXEC AddWork 'F-01','Fejállomás építés','Kopfstation Bau','Headstation construction',4,0,NULL,NULL,NULL,1,2,2,15000,40,40
+EXEC CreateWork 'T-01','Tápegység csere','Netzteils Austausch','Powersupply replacement',3,0,NULL,NULL,NULL,1,2,2,5000,20,20
+EXEC CreateWork 'F-01','Fejállomás építés','Kopfstation Bau','Headstation construction',4,0,NULL,NULL,NULL,1,2,2,15000,40,40
 
 -- SELECT * FROM Work
 
@@ -836,11 +1021,11 @@ WHERE WC.WorkCategoryID = 2 AND WS.WorkSubcategoryID = 4
 GO
 
 --INSERT INTO dbo.Worksheet VALUES(1,1,NULL,'WS-000001',0,NULL,SYSDATETIME(),'Acer Nitro Notebook',NULL,'Nem indul a windows, linux telepítést kértek (Debian-t)',1,0,0,NULL,NULL)
-EXEC CreateInternalWorksheet 1,1,NULL,NULL,'Acer Nitro Notebook',NULL,'Nem indul a windows, linux telepítést kértek (Debian-t)',1
+EXEC CreateWorksheet 1,1,NULL,NULL,'Acer Nitro Notebook',NULL,'Nem indul a windows, linux telepítést kértek (Debian-t)',1
 
 
 --INSERT INTO dbo.Worksheet VALUES(1,1,NULL,'WS-000002',0,NULL,SYSDATETIME(),'Asus TUF Gaming Notebook','SN-000123','SSD cserét kértek, és windows telepítést',1,0,0,NULL,NULL)
-EXEC CreateInternalWorksheet 1,1,NULL,NULL,'Asus TUF Gaming Notebook','SN-000123','SSD cserét kértek, és windows telepítést',1
+EXEC CreateWorksheet 1,1,NULL,NULL,'Asus TUF Gaming Notebook','SN-000123','SSD cserét kértek, és windows telepítést',1
 
 
 GO
@@ -848,8 +1033,8 @@ GO
 
 -- Get Basic Worksheet Data
 
-EXEC WorksheetBasicData @Worksheetnumber='WS-HU000001'
-EXEC WorksheetBasicData @Worksheetnumber='WS-HU000002'
+EXEC GetWorksheetBasicData @Worksheetnumber='WS-HU000001'
+EXEC GetWorksheetBasicData @Worksheetnumber='WS-HU000002'
 
 
 SELECT * FROM WorksheetDetail
@@ -869,6 +1054,7 @@ INSERT INTO WorksheetDetail VALUES(2,2,5,2,NULL,NULL)
 
 EXEC GetWorksByWorksheetNumber @Worksheetnumber ='WS-HU000001'
 EXEC GetWorksByWorksheetNumber @Worksheetnumber ='WS-HU000002'
+
 
 -- Adding B2B Partners
 
@@ -958,3 +1144,147 @@ UPDATE AssetStock SET Quantity =0 WHERE AssetID = 2
 -- Get Used Asset Data - with used asset)
 
 EXEC GetUsedComponentsByWorksheetNumber @Worksheetnumber ='WS-HU000002'
+
+
+-- EXEC CreateRandomWorksheet 500
+
+EXEC GetWorksByWorksheetNumber 'WS-HU000004'
+EXEC GetWorksByWorksheetNumber 'WS-HU000006'
+EXEC GetWorksByWorksheetNumber 'WS-AT000005'
+
+
+SELECT * FROM Customer C WHERE C.isSubcontractor =0 AND C.isWorker =0 AND C.isB2bParnter = 0
+
+SELECT * FROM Worksheet W WHERE YEAR(W.TimeOfIssue) = '2020' ORDER BY W.TimeOfIssue DESC,W.ServiceCode,W.WorksheetNumber
+SELECT * FROM Worksheet W WHERE YEAR(W.TimeOfIssue) = '2023' ORDER BY W.TimeOfIssue DESC,W.ServiceCode,W.WorksheetNumber
+
+-- Importing Names from CSV + generate Mail Address 
+
+-- Function AccentConverter (Because of áéíúû characters)
+GO
+CREATE OR ALTER FUNCTION dbo.AccentConverter (@data varchar(100))
+RETURNS VARCHAR(100)
+AS
+BEGIN
+SET @data = (SELECT @data collate SQL_Latin1_General_Cp1251_CS_AS)
+RETURN @data
+END
+
+GO
+-- View for NewID
+
+CREATE OR ALTER VIEW dbo.NewID
+AS
+SELECT NEWID() AS [NewID]
+
+GO
+
+
+-- Stored Procedure GenerateRandomPhoneNumber
+
+CREATE OR ALTER FUNCTION dbo.GenerateRandomPhoneNumber()
+RETURNS VARCHAR(20)
+AS
+BEGIN
+    DECLARE @prefix VARCHAR(4)
+    DECLARE @number VARCHAR(7)
+    
+    SELECT TOP 1 @prefix = prefix 
+    FROM (VALUES ('20'), ('30'), ('70')) AS prefixes(prefix)
+    ORDER BY ( (SELECT [NewId] FROM dbo.NewID))
+    
+    SET @number = ''
+    WHILE LEN(@number) < 7
+    BEGIN
+        SET @number = @number + CAST(FLOOR(dbo.ReturnRand() * 10) AS VARCHAR(1))
+    END
+    
+    RETURN CONCAT('+36', ' ', @prefix, ' ', SUBSTRING(@number, 1, 3), '-', SUBSTRING(@number, 4, 2), SUBSTRING(@number, 6, 2))
+END
+
+GO
+SELECT dbo.GenerateRandomPhoneNumber()
+
+GO
+CREATE OR ALTER PROCEDURE CreateRandomCustomer
+@count int
+AS
+
+DECLARE @i int 
+SET @i = 0
+WHILE @i < @count
+
+	BEGIN 
+	SET @i = @i + 1
+
+	DROP TABLE IF EXISTS #Names
+	CREATE TABLE #Names (Lastname varchar(100))
+	BULK INSERT #Names
+			FROM 'D:\GoogleDrive\T360\Vizsgaremek\csaladnevek.csv'
+			WITH (FIELDTERMINATOR =';',  ROWTERMINATOR ='\n', CODEPAGE = 'ACP', FIRSTROW = 2)
+
+	-- SELECT * FROM #Names
+
+
+	DROP TABLE IF EXISTS #Names2
+	CREATE TABLE #Names2 (Firstname varchar(100))
+	BULK INSERT #Names2
+			FROM 'D:\GoogleDrive\T360\Vizsgaremek\utonevek.csv'
+			WITH (FIELDTERMINATOR =';',  ROWTERMINATOR ='\n', CODEPAGE = 'ACP', FIRSTROW = 2)
+
+	-- SELECT * FROM #Names2
+
+	DROP TABLE IF EXISTS #TempData
+
+	SELECT TOP 1 N.Lastname,N2.Firstname, CONCAT(dbo.AccentConverter(N.Lastname), + '.', dbo.AccentConverter(Firstname), + '@gmail.com') AS Email,dbo.GenerateRandomPhoneNumber() AS PhoneNumber  
+	INTO #TempData
+	FROM #Names2 N2
+	CROSS JOIN #Names N 
+	ORDER BY NEWID()
+
+	DECLARE @FirstName varchar(30), @LastName varchar(20), @PhoneNumber varchar(20), @Email varchar(90)
+
+	SET @FirstName = (SELECT Firstname FROM #TempData)
+	SET @LastName = (SELECT Lastname FROM #TempData)
+	SET @PhoneNumber = (SELECT PhoneNumber FROM #TempData)
+	SET @PhoneNumber = (SELECT PhoneNumber FROM #TempData)
+	SET @Email = (SELECT Email FROM #TempData)
+
+	-- Generate Customer Password
+	DECLARE @Password VARCHAR(8)
+	SET @Password =(SELECT LEFT(NEWID(),8))
+
+	INSERT INTO Customer VALUES (@FirstName,NULL,@LastName,@Email,'1',@Password,@PhoneNumber,NULL,'0','0',NULL,0,0,NULL,0,NULL)
+
+	DECLARE @CustomerID int 
+	DECLARE @Street varchar(100)
+	DECLARE @StreetNumber tinyint
+	DECLARE @CompleteAddress varchar(200)
+
+	SET @CustomerID = SCOPE_IDENTITY() 
+
+	SET @Street = (SELECT * FROM vRandomStreet)
+	SET @StreetNumber = (SELECT dbo.ReturnRandFromTo(1,120))
+	SET @CompleteAddress = CONCAT(@Street, @StreetNumber)
+
+
+	INSERT INTO dbo.Address (CustomerID,CountryCode,PostalCode,CityName,AddressLine1,Addressline2,AddressFrom,AddressTo) VALUES (@CustomerID,'HU','8360','Keszthely',@CompleteAddress,NULL,GETDATE(),NULL)
+
+END
+
+-- Creating some Demo Data ... :)
+
+-- EXEC CreateRandomCustomer @count = 3000
+-- CreateRandomWorksheet 3100
+
+-- SELECT * FROM Customer
+-- SELECT * FROM Worksheet
+-- SELECT * FROM Address
+
+
+
+
+
+
+
+
