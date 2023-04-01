@@ -1,9 +1,10 @@
--- WorkRouter V0.2  Beta 3
+-- WorkRouter V0.3
+-- This SQL script creates the database structure with randomly generated test data (Unique Customers,Addresses,Worksheets,Works)
 
-CREATE DATABASE WorkRouter2
+CREATE DATABASE WorkRouter
 GO
 
-USE WorkRouter2
+USE WorkRouter
 GO
 
 CREATE TABLE Customer (
