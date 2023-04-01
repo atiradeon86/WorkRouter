@@ -503,7 +503,7 @@ AS SELECT TOP 1 value FROM STRING_SPLIT('Valami megjegyzés .,Valami megjegyzés .
 
 GO
 CREATE OR ALTER VIEW vRandomStreet
-AS SELECT TOP 1 value FROM STRING_SPLIT('Kossuth u.,Petõfi u.,Arany János u.', ',') order by newid()
+AS SELECT TOP 1 value FROM STRING_SPLIT('Kossuth u.,Petõfi u.,Arany János u.,Petõfi u.,Rákóczi u.,József Attila u.,Béke u., Szabadság u.', ',') order by newid()
 
 -- SELECT * FROM vRandomStreet
 
@@ -1283,19 +1283,23 @@ WHILE @i < @count
 
 	INSERT INTO Customer VALUES (@FirstName,NULL,@LastName,@Email,'1',@Password,@PhoneNumber,NULL,'0','0',NULL,0,0,NULL,0,NULL)
 
-	DECLARE @CustomerID int 
-	DECLARE @Street varchar(100)
-	DECLARE @StreetNumber tinyint
-	DECLARE @CompleteAddress varchar(200)
+	DECLARE @CustomerID int , @Street varchar(100), @StreetNumber tinyint,@RandomPostalCodeID smallint,@RandomPostalCode varchar(10),@RandomCity varchar(50),@CompleteAddress varchar(200)
+
 
 	SET @CustomerID = SCOPE_IDENTITY() 
+	SET @RandomPostalCodeID = (SELECT dbo.ReturnRandFromTo(1,3570))
+
+	SET @RandomPostalCode = (SELECT PC.PostalCode FROM PostalCode PC WHERE PC.PostalCodeID = @RandomPostalCodeID) 
+	SET @RandomCity = (SELECT PC.CityName FROM PostalCode PC WHERE PC.PostalCodeID = @RandomPostalCodeID) 
 
 	SET @Street = (SELECT * FROM vRandomStreet)
 	SET @StreetNumber = (SELECT dbo.ReturnRandFromTo(1,120))
+
+
 	SET @CompleteAddress = CONCAT(@Street, @StreetNumber)
 
 
-	INSERT INTO dbo.Address (CustomerID,CountryCode,PostalCode,CityName,AddressLine1,Addressline2,AddressFrom,AddressTo) VALUES (@CustomerID,'HU','8360','Keszthely',@CompleteAddress,NULL,GETDATE(),NULL)
+	INSERT INTO dbo.Address (CustomerID,CountryCode,PostalCode,CityName,AddressLine1,Addressline2,AddressFrom,AddressTo) VALUES (@CustomerID,'HU',@RandomPostalCode,@RandomCity,@CompleteAddress,NULL,GETDATE(),NULL)
 
 END
 
