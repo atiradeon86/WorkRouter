@@ -1,3 +1,6 @@
+-- WorkRouter V0.3
+-- DBdiagram: https://dbdiagram.io/d/63f22373296d97641d82122c
+
 Table Customer {
   CustomerID int [pk, increment]
   FirstName varchar(30)
