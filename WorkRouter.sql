@@ -1,9 +1,9 @@
 -- WorkRouter V0.2  Beta 3
 
-CREATE DATABASE WorkRouter
+CREATE DATABASE WorkRouter2
 GO
 
-USE WorkRouter
+USE WorkRouter2
 GO
 
 CREATE TABLE Customer (
@@ -11,7 +11,7 @@ CREATE TABLE Customer (
   FirstName varchar(30),
   MiddleName varchar(30),
   LastName varchar(30),
-  Email varchar(90),
+  Email varchar(90) UNIQUE,
   PermitLogin bit DEFAULT 0,
   CustomerPassword varchar(8),
   PhoneNumber varchar(20) UNIQUE,
@@ -503,7 +503,7 @@ AS SELECT TOP 1 value FROM STRING_SPLIT('Valami megjegyzés .,Valami megjegyzés .
 
 GO
 CREATE OR ALTER VIEW vRandomStreet
-AS SELECT TOP 1 value FROM STRING_SPLIT('Kossuth u.,Petõfi u.,Arany János u.,Petõfi u.,Rákóczi u.,József Attila u.,Béke u., Szabadság u.', ',') order by newid()
+AS SELECT TOP 1 value FROM STRING_SPLIT('Kossuth u.,Petõfi u.,Arany János u.,Petõfi u.,Rákóczi u.,József Attila u.,Béke u.,Szabadság u.', ',') order by newid()
 
 -- SELECT * FROM vRandomStreet
 
@@ -624,7 +624,7 @@ AS
 	BEGIN
 		-- PRINT 'Debug';
 		SET @i = @i + 1
-		SET @CustomerID = (SELECT dbo.ReturnRandFromTo(7,3006))
+		SET @CustomerID = (SELECT dbo.ReturnRandFromTo(7,3100))
 		SET @ServiceCode = (SELECT dbo.ReturnRandFromTo(1,3))
 		SET @DeviceName = (SELECT * FROM vRandomDeviceType)
 		SET @DeviceSerialNumber = (SELECT dbo.ReturnRandFromTo(35000,95000))
@@ -660,7 +660,7 @@ AS
 		-- Add random data to worksheet detail based on worksheetID
 		DECLARE @wi int, @wcount int
 		SET @wi = 0
-		SET @wcount = (SELECT dbo.ReturnRandFromTo(1,10))
+		SET @wcount = (SELECT dbo.ReturnRandFromTo(1,3))
 		
 		WHILE @wi < @wcount
 		BEGIN
@@ -800,7 +800,10 @@ INSERT INTO dbo.DictCountry VALUES ('HU','Magyarország')
 INSERT INTO dbo.DictCountry VALUES ('AT','Ausztria')
 INSERT INTO dbo.DictCountry VALUES ('GB','Anglia')
 
+GO
 EXEC CsvImport @Filename ='D:\GoogleDrive\T360\Vizsgaremek\county.csv',@Codepage = '65001',@IntoTableName = 'dbo.DictCounty',@FormatFile ='D:\GoogleDrive\T360\Vizsgaremek\county.xml'
+
+GO
 EXEC CsvImport @Filename ='D:\GoogleDrive\T360\Vizsgaremek\postalcode.csv',@Codepage = '65001',@IntoTableName = 'dbo.PostalCode',@FormatFile ='D:\GoogleDrive\T360\Vizsgaremek\postalcode.xml'
 
 
@@ -1183,7 +1186,7 @@ EXEC GetUsedComponentsByWorksheetNumber @Worksheetnumber ='WS-HU000002'
 
 EXEC GetWorksByWorksheetNumber 'WS-HU000004'
 EXEC GetWorksByWorksheetNumber 'WS-HU001006'
-EXEC GetWorksByWorksheetNumber 'WS-AT000005'
+EXEC GetWorksByWorksheetNumber 'WS-AT000405'
 
 
 SELECT * FROM Customer C WHERE C.isSubcontractor =0 AND C.isWorker =0 AND C.isB2bParnter = 0
@@ -1312,17 +1315,58 @@ WHILE @i < @count
 END
 
 -- Creating some Demo Data ... :)
-
--- EXEC CreateRandomCustomer @count = 3000
--- EXEC CreateRandomWorksheet 3100
+GO
+EXEC CreateRandomCustomer @count = 3000
+GO
+EXEC CreateRandomWorksheet 3200
 
 -- SELECT * FROM Customer
 -- SELECT * FROM Worksheet
 -- SELECT * FROM Address
 
 
-
 SELECT W.WorksheetID ,COUNT(WorksheetDetailID) FROM WorksheetDetail WD
 INNER JOIN Worksheet W ON W.WorksheetID = WD.WorksheetID 
 GROUP BY WD.WorksheetID,W.WorksheetID
 ORDER BY 2 DESC
+
+SELECT * FROM Customer C INNER JOIN Address A ON A.CustomerID = C.CustomerID WHERE isWorker = 0
+
+-- Test Query (Index check)
+SELECT * FROM Customer WHERE FirstName = 'Attila'
+SELECT * FROM Customer WHERE LastName = 'Horvath'
+SELECT * FROM Customer WHERE Firstname ='Attila' AND LastName = 'Horvath'
+SELECT * FROM Customer WHERE email ='atiradeon86@gmail.com'
+SELECT * FROM Customer WHERE PhoneNumber = '+3620 348-1070'
+
+
+-- Index
+GO
+CREATE NONCLUSTERED INDEX IX_Customer_Firstname
+   ON Customer (Firstname) INCLUDE (MiddleName,LastName,Email,PermitLogin,CustomerPassword,PhoneNumber,SecondPhoneNumber,iSNewsletter,HasBuyerCard,BuyerCardNumber,isWorker,IsSubcontractor,SubcontractorName,isB2bparnter,B2bPartnerNAme)
+
+GO
+CREATE NONCLUSTERED INDEX IX_Customer_Lastname
+   ON Customer (LastName) INCLUDE (Firstname,MiddleName,Email,PermitLogin,CustomerPassword,PhoneNumber,SecondPhoneNumber,iSNewsletter,HasBuyerCard,BuyerCardNumber,isWorker,IsSubcontractor,SubcontractorName,isB2bparnter,B2bPartnerNAme)
+GO
+
+CREATE NONCLUSTERED INDEX IX_Customer_Email
+   ON Customer (Email)
+
+GO
+-- DROP INDEX Customer.IX_Customer_Firstname;
+-- DROP INDEX Customer.IX_Customer;
+
+-- Test Query Worksheet Data (Index check)
+-- SELECT * FROM Worksheet WHERE WorksheetNumber = 'WS-HU000103'
+-- EXEC GetWorksheetBasicData @Worksheetnumber='WS-AT000056'
+GO
+CREATE NONCLUSTERED INDEX IX_WorksheetID ON  WorksheetDetail(WorksheetID) INCLUDE(WorkerID,WorkID,Quantity,WorkerDescription)
+--DROP INDEX Customer.IX_WorksheetID;
+
+-- Get multiple info for testing.
+SELECT * FROM Worker W 
+INNER JOIN Customer C ON C.CustomerID = W.CustomerID 
+INNER JOIN Service S ON S.ServiceCode = W.ServiceCode
+INNER JOIN Worksheet WS ON WS.ServiceCode = S.ServiceCode
+WHERE C.FirstName = 'Attila' AND W.ServiceCode = 1 AND WS.WorksheetRecorderID='1'
