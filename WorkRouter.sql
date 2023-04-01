@@ -507,6 +507,12 @@ AS SELECT TOP 1 value FROM STRING_SPLIT('Kossuth u.,Petõfi u.,Arany János u.,Pet
 
 -- SELECT * FROM vRandomStreet
 
+GO
+CREATE OR ALTER VIEW vRandomMailProvider
+AS SELECT TOP 1 value FROM STRING_SPLIT('@gmail.com,@hotmail.com,@citromail.hu,@freemail.hu,@protonmail.com,@outlook.com,@onmicrosoft.com', ',') order by newid()
+
+-- SELECT * FROM vRandomMailProvider
+
 
 -- Creating Usable random function
 
@@ -1262,9 +1268,11 @@ END
 WHILE @i < @count
 
 	BEGIN 
+	DECLARE @RandomEmailProvider varchar(50)
+	SET @RandomEmailProvider = (SELECT * FROM vRandomMailProvider)
 	SET @i = @i + 1
 	DROP TABLE IF EXISTS #TempData
-	SELECT TOP 1 N.Lastname,N2.Firstname, CONCAT(dbo.AccentConverter(N.Lastname), + '.', dbo.AccentConverter(Firstname), + '@gmail.com') AS Email,dbo.GenerateRandomPhoneNumber() AS PhoneNumber  
+	SELECT TOP 1 N.Lastname,N2.Firstname, CONCAT(dbo.AccentConverter(N.Lastname), + '.', dbo.AccentConverter(Firstname), + @RandomEmailProvider) AS Email,dbo.GenerateRandomPhoneNumber() AS PhoneNumber  
 	INTO #TempData
 	FROM #Names2 N2
 	CROSS JOIN #Names N 
