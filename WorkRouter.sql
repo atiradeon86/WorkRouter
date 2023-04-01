@@ -576,6 +576,29 @@ INSERT INTO WorksheetDetail(WorksheetID,WorkerID,WorkID,Quantity,WorkerDescripti
 
 GO
 
+-- Stored Procedure CSV Import with Name + Encoding Parameter (CODEPAGE 65001 -> UTF8)
+
+CREATE OR ALTER PROCEDURE CsvImport
+@FileName nvarchar(max),
+@Codepage nvarchar(5),
+@IntoTableName nvarchar(20),
+@FormatFile nvarchar(200)
+AS
+
+DECLARE @Sql nvarchar(max)
+
+SET @Sql = 'BULK INSERT ' + @IntoTableName + '
+FROM ''' + @FileName + '''
+WITH (FORMATFILE = ''' +@FormatFile+ ''',
+      CODEPAGE = ''' + @Codepage + ''', 
+	  firstrow = 2,
+	  fieldterminator = '','',
+	  rowterminator=''\n'')'
+
+-- Debug SELECT @Sql
+EXEC sp_executesql @Sql
+GO
+
 -- Stored Procedure CreateRandomWorksheet
 
 -- This SP Generates random worksheets, with random works
@@ -631,7 +654,7 @@ AS
 		-- Add random data to worksheet detail based on worksheetID
 		DECLARE @wi int, @wcount int
 		SET @wi = 0
-		SET @wcount = (SELECT dbo.ReturnRandFromTo(1,3))
+		SET @wcount = (SELECT dbo.ReturnRandFromTo(1,10))
 		
 		WHILE @wi < @wcount
 		BEGIN
@@ -771,7 +794,8 @@ INSERT INTO dbo.DictCountry VALUES ('HU','Magyarország')
 INSERT INTO dbo.DictCountry VALUES ('AT','Ausztria')
 INSERT INTO dbo.DictCountry VALUES ('GB','Anglia')
 
-INSERT INTO dbo.DictCounty VALUES  ('HU', 'Zala')
+EXEC CsvImport @Filename ='D:\GoogleDrive\T360\Vizsgaremek\county.csv',@Codepage = '65001',@IntoTableName = 'dbo.DictCounty',@FormatFile ='D:\GoogleDrive\T360\Vizsgaremek\county.xml'
+EXEC CsvImport @Filename ='D:\GoogleDrive\T360\Vizsgaremek\postalcode.csv',@Codepage = '65001',@IntoTableName = 'dbo.PostalCode',@FormatFile ='D:\GoogleDrive\T360\Vizsgaremek\postalcode.xml'
 
 
 GO
@@ -1152,7 +1176,7 @@ EXEC GetUsedComponentsByWorksheetNumber @Worksheetnumber ='WS-HU000002'
 -- EXEC CreateRandomWorksheet 500
 
 EXEC GetWorksByWorksheetNumber 'WS-HU000004'
-EXEC GetWorksByWorksheetNumber 'WS-HU000006'
+EXEC GetWorksByWorksheetNumber 'WS-HU001006'
 EXEC GetWorksByWorksheetNumber 'WS-AT000005'
 
 
@@ -1278,7 +1302,7 @@ END
 -- Creating some Demo Data ... :)
 
 -- EXEC CreateRandomCustomer @count = 3000
--- CreateRandomWorksheet 3100
+-- EXEC CreateRandomWorksheet 3100
 
 -- SELECT * FROM Customer
 -- SELECT * FROM Worksheet
@@ -1286,6 +1310,7 @@ END
 
 
 
-
-
-
+SELECT W.WorksheetID ,COUNT(WorksheetDetailID) FROM WorksheetDetail WD
+INNER JOIN Worksheet W ON W.WorksheetID = WD.WorksheetID 
+GROUP BY WD.WorksheetID,W.WorksheetID
+ORDER BY 2 DESC
