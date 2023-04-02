@@ -286,8 +286,7 @@ CREATE TABLE WorkCategory (
 GO
 
 CREATE TABLE Bill (
-  BillID int PRIMARY KEY IDENTITY(1, 1),
-  WorksheetID int NOT NULL,
+  WorksheetID int PRIMARY KEY,
   SentStatus int DEFAULT 0,
   PaymmentStatus varchar(20),
   TS Timestamp
@@ -431,6 +430,22 @@ GO
 
 ALTER TABLE AssetStock ADD FOREIGN KEY (VatID3) REFERENCES DictVAT (VATID)
 GO
+
+/* Trigger */
+
+/* Creating Bill Base Data if we have a new worksheet*/
+
+
+CREATE OR ALTER TRIGGER BillBaseData  
+ON Worksheet  
+AFTER INSERT    
+AS 
+DECLARE @LastWorksheetID int
+SET @LastWorksheetID = (SELECT MAX(WorksheetId) FROM Worksheet)
+INSERT INTO Bill(WorksheetID,SentStatus) VALUES(@LastWorksheetID,0) 
+
+GO
+
 
 /* Functions */
 
@@ -1324,8 +1339,8 @@ EXEC CreateRandomWorksheet 3200
 
 -- SELECT * FROM Customer
 -- SELECT * FROM Worksheet
+-- SELECT * FROM Bill
 -- SELECT * FROM Address
-
 
 SELECT W.WorksheetID ,COUNT(WorksheetDetailID) FROM WorksheetDetail WD
 INNER JOIN Worksheet W ON W.WorksheetID = WD.WorksheetID 
@@ -1369,12 +1384,12 @@ INNER JOIN Service S ON S.ServiceCode = W.ServiceCode
 INNER JOIN Worksheet WS ON WS.ServiceCode = S.ServiceCode
 WHERE C.FirstName = 'Attila' AND W.ServiceCode = 1 AND WS.WorksheetRecorderID='1'
 
--- Check Indexe  Usage Stats
+-- Check Index  Usage Stats
 SELECT OBJECT_NAME(OBJECT_ID) TableName, *
 FROM sys.dm_db_index_usage_stats
 WHERE database_id = DB_ID() 
 ORDER BY 1,4
 
--- Check Indexe  Physical Stats
+-- Check Index  Physical Stats
 SELECT OBJECT_NAME(OBJECT_ID) TableName, *
 FROM sys.dm_db_index_physical_stats(DB_ID(),NULL,NULL,NULL, 'DETAILED')
