@@ -1,4 +1,5 @@
 -- WorkRouter V0.3
+-- DBdiagram: https://dbdiagram.io/d/63f22373296d97641d82122c
 -- This SQL script creates the database structure with randomly generated test data (Unique Customers,Addresses,Worksheets,Works)
 
 CREATE DATABASE WorkRouter
@@ -285,8 +286,7 @@ CREATE TABLE WorkCategory (
 GO
 
 CREATE TABLE Bill (
-  BillID int PRIMARY KEY IDENTITY(1, 1),
-  WorksheetID int NOT NULL,
+  WorksheetID int PRIMARY KEY,
   SentStatus int DEFAULT 0,
   PaymmentStatus varchar(20),
   TS Timestamp
@@ -430,6 +430,22 @@ GO
 
 ALTER TABLE AssetStock ADD FOREIGN KEY (VatID3) REFERENCES DictVAT (VATID)
 GO
+
+/* Trigger */
+
+/* Creating Bill Base Data if we have a new worksheet*/
+
+
+CREATE OR ALTER TRIGGER BillBaseData  
+ON Worksheet  
+AFTER INSERT    
+AS 
+DECLARE @LastWorksheetID int
+SET @LastWorksheetID = (SELECT MAX(WorksheetId) FROM Worksheet)
+INSERT INTO Bill(WorksheetID,SentStatus) VALUES(@LastWorksheetID,0) 
+
+GO
+
 
 /* Functions */
 
@@ -1323,8 +1339,8 @@ EXEC CreateRandomWorksheet 3200
 
 -- SELECT * FROM Customer
 -- SELECT * FROM Worksheet
+-- SELECT * FROM Bill
 -- SELECT * FROM Address
-
 
 SELECT W.WorksheetID ,COUNT(WorksheetDetailID) FROM WorksheetDetail WD
 INNER JOIN Worksheet W ON W.WorksheetID = WD.WorksheetID 
@@ -1344,19 +1360,15 @@ SELECT * FROM Customer WHERE PhoneNumber = '+3620 348-1070'
 -- Index
 GO
 CREATE NONCLUSTERED INDEX IX_Customer_Firstname
-   ON Customer (Firstname) INCLUDE (MiddleName,LastName,Email,PermitLogin,CustomerPassword,PhoneNumber,SecondPhoneNumber,iSNewsletter,HasBuyerCard,BuyerCardNumber,isWorker,IsSubcontractor,SubcontractorName,isB2bparnter,B2bPartnerNAme)
+   ON Customer (Firstname) INCLUDE (MiddleName,LastName)
 
 GO
 CREATE NONCLUSTERED INDEX IX_Customer_Lastname
-   ON Customer (LastName) INCLUDE (Firstname,MiddleName,Email,PermitLogin,CustomerPassword,PhoneNumber,SecondPhoneNumber,iSNewsletter,HasBuyerCard,BuyerCardNumber,isWorker,IsSubcontractor,SubcontractorName,isB2bparnter,B2bPartnerNAme)
+   ON Customer (LastName) INCLUDE (Firstname,MiddleName)
 GO
 
-CREATE NONCLUSTERED INDEX IX_Customer_Email
-   ON Customer (Email)
-
-GO
 -- DROP INDEX Customer.IX_Customer_Firstname;
--- DROP INDEX Customer.IX_Customer;
+-- DROP INDEX Customer.IX_Customer_Lastname;
 
 -- Test Query Worksheet Data (Index check)
 -- SELECT * FROM Worksheet WHERE WorksheetNumber = 'WS-HU000103'
@@ -1371,3 +1383,13 @@ INNER JOIN Customer C ON C.CustomerID = W.CustomerID
 INNER JOIN Service S ON S.ServiceCode = W.ServiceCode
 INNER JOIN Worksheet WS ON WS.ServiceCode = S.ServiceCode
 WHERE C.FirstName = 'Attila' AND W.ServiceCode = 1 AND WS.WorksheetRecorderID='1'
+
+-- Check Index  Usage Stats
+SELECT OBJECT_NAME(OBJECT_ID) TableName, *
+FROM sys.dm_db_index_usage_stats
+WHERE database_id = DB_ID() 
+ORDER BY 1,4
+
+-- Check Index  Physical Stats
+SELECT OBJECT_NAME(OBJECT_ID) TableName, *
+FROM sys.dm_db_index_physical_stats(DB_ID(),NULL,NULL,NULL, 'DETAILED')
