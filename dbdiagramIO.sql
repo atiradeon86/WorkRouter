@@ -244,8 +244,7 @@ Table WorkCategory {
 
 
 Table Bill {
-  BillID int [pk, increment]
-  WorksheetID int
+  WorksheetID int [pk]
   SentStatus int
   PaymmentStatus varchar(20)
   TS Timestamp
