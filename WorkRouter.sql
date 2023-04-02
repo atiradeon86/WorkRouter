@@ -1397,12 +1397,30 @@ FROM sys.dm_db_index_physical_stats(DB_ID(),NULL,NULL,NULL, 'DETAILED')
 
 --------------- Security ----------------
 
+DROP LOGIN ERPConnection
+DROP USER ERPConnection
+DROP USER WorkrouterAdmin
 DROP LOGIN WorkrouterAdmin
 DROP USER WorkrouterAdmin
 DROP LOGIN Client
 DROP USER Client
 
--- Users - Create Admin Login (WorkrouterAdmin) 
+-- Users 
+
+-- Create ERP Login
+USE master
+GO
+CREATE LOGIN ERPConnection WITH PASSWORD='ERP1234#' , DEFAULT_DATABASE=master
+
+-- Map Login
+USE WorkRouter
+GO
+CREATE USER ERPConnection FOR LOGIN ERPConnection
+
+-- Add right to execute stored procedures on dbo schema
+GRANT EXECUTE ON SCHEMA::dbo TO ERPConnection
+
+-- Create Admin Login (WorkrouterAdmin) 
 
 USE master
 GO
@@ -1546,3 +1564,100 @@ $SqlServer = "BRYAN-i5-12600K\BRYAN"
 echo $data
 */
 --------------------------------------------------------------------------
+
+----------------- DatabaseRoles -----------------
+
+-- WorkRouter (Manage workers rights, worker assignment to works)
+
+USE WorkRouter
+GO
+
+CREATE ROLE WorkRouter AUTHORIZATION dbo
+GO
+
+GRANT DELETE ON dbo.WorkerRightConnection TO WorkRouter
+GRANT INSERT ON dbo.WorkerRightConnection TO WorkRouter
+GRANT SELECT ON dbo.WorkerRightConnection TO WorkRouter
+GRANT UPDATE ON dbo.WorkerRightConnection TO WorkRouter
+GO
+
+GRANT DELETE ON dbo.WorkerRight TO WorkRouter
+GRANT INSERT ON dbo.WorkerRight TO WorkRouter
+GRANT SELECT ON dbo.WorkerRight TO WorkRouter
+GRANT UPDATE ON dbo.WorkerRight TO WorkRouter
+GO
+
+GRANT DELETE ON dbo.Worker TO WorkRouter
+GRANT INSERT ON dbo.Worker TO WorkRouter
+GRANT SELECT ON dbo.Worker TO WorkRouter
+GRANT UPDATE ON dbo.Worker TO WorkRouter
+GO
+
+GRANT DELETE ON dbo.WorkerConnection TO WorkRouter
+GRANT INSERT ON dbo.WorkerConnection TO WorkRouter
+GRANT SELECT ON dbo.WorkerConnection TO WorkRouter
+GRANT UPDATE ON dbo.WorkerConnection TO WorkRouter
+GO
+
+-- AssetAdmin (Manage asset purchases, asset details )
+
+USE WorkRouter
+GO
+
+CREATE ROLE AssetAdmin AUTHORIZATION dbo
+
+GRANT DELETE ON dbo.AssetPurchase TO AssetAdmin
+GRANT INSERT ON dbo.AssetPurchase TO AssetAdmin
+GRANT SELECT ON dbo.AssetPurchase TO AssetAdmin
+GRANT UPDATE ON dbo.AssetPurchase TO AssetAdmin
+GO
+
+GRANT DELETE ON dbo.AssetStock TO AssetAdmin
+GRANT INSERT ON dbo.AssetStock TO AssetAdmin
+GRANT SELECT ON dbo.AssetStock TO AssetAdmin
+GRANT UPDATE ON dbo.AssetStock TO AssetAdmin
+GO
+
+GRANT DELETE ON dbo.AssetComponentSubcategory TO AssetAdmin
+GRANT INSERT ON dbo.AssetComponentSubcategory TO AssetAdmin
+GRANT SELECT ON dbo.AssetComponentSubcategory TO AssetAdmin
+GRANT UPDATE ON dbo.AssetComponentSubcategory TO AssetAdmin
+GO
+
+GRANT DELETE ON dbo.AssetComponent TO AssetAdmin
+GRANT INSERT ON dbo.AssetComponent TO AssetAdmin
+GRANT SELECT ON dbo.AssetComponent TO AssetAdmin
+GRANT UPDATE ON dbo.AssetComponent TO AssetAdmin
+GO
+
+GRANT DELETE ON dbo.AssetComponentCategory TO AssetAdmin
+GRANT INSERT ON dbo.AssetComponentCategory TO AssetAdmin
+GRANT SELECT ON dbo.AssetComponentCategory TO AssetAdmin
+GRANT UPDATE ON dbo.AssetComponentCategory TO AssetAdmin
+GO
+
+-- WorkAdmin (Manage works, categories, prices, vats ... )
+
+USE WorkRouter
+GO
+
+CREATE ROLE WorkAdmin AUTHORIZATION dbo
+GO
+
+GRANT DELETE ON dbo.WorkSubcategory TO WorkAdmin
+GRANT INSERT ON dbo.WorkSubcategory TO WorkAdmin
+GRANT SELECT ON dbo.WorkSubcategory TO WorkAdmin
+GRANT UPDATE ON dbo.WorkSubcategory TO WorkAdmin
+GO
+
+GRANT DELETE ON dbo.WorkCategory TO WorkAdmin
+GRANT INSERT ON dbo.WorkCategory TO WorkAdmin
+GRANT SELECT ON dbo.WorkCategory TO WorkAdmin
+GRANT UPDATE ON dbo.WorkCategory TO WorkAdmin
+GO
+
+GRANT DELETE ON dbo.Work TO WorkAdmin
+GRANT INSERT ON dbo.Work TO WorkAdmin
+GRANT SELECT ON dbo.Work TO WorkAdmin
+GRANT UPDATE ON dbo.Work TO WorkAdmin
+GO
