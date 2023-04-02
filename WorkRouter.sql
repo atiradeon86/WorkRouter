@@ -1399,7 +1399,6 @@ FROM sys.dm_db_index_physical_stats(DB_ID(),NULL,NULL,NULL, 'DETAILED')
 
 DROP LOGIN ERPConnection
 DROP USER ERPConnection
-DROP USER WorkrouterAdmin
 DROP LOGIN WorkrouterAdmin
 DROP USER WorkrouterAdmin
 DROP LOGIN Client
