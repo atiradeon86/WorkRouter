@@ -1,4 +1,5 @@
 -- WorkRouter V0.3
+-- DBdiagram: https://dbdiagram.io/d/63f22373296d97641d82122c
 -- This SQL script creates the database structure with randomly generated test data (Unique Customers,Addresses,Worksheets,Works)
 
 CREATE DATABASE WorkRouter
@@ -1344,19 +1345,15 @@ SELECT * FROM Customer WHERE PhoneNumber = '+3620 348-1070'
 -- Index
 GO
 CREATE NONCLUSTERED INDEX IX_Customer_Firstname
-   ON Customer (Firstname) INCLUDE (MiddleName,LastName,Email,PermitLogin,CustomerPassword,PhoneNumber,SecondPhoneNumber,iSNewsletter,HasBuyerCard,BuyerCardNumber,isWorker,IsSubcontractor,SubcontractorName,isB2bparnter,B2bPartnerNAme)
+   ON Customer (Firstname) INCLUDE (MiddleName,LastName)
 
 GO
 CREATE NONCLUSTERED INDEX IX_Customer_Lastname
-   ON Customer (LastName) INCLUDE (Firstname,MiddleName,Email,PermitLogin,CustomerPassword,PhoneNumber,SecondPhoneNumber,iSNewsletter,HasBuyerCard,BuyerCardNumber,isWorker,IsSubcontractor,SubcontractorName,isB2bparnter,B2bPartnerNAme)
+   ON Customer (LastName) INCLUDE (Firstname,MiddleName)
 GO
 
-CREATE NONCLUSTERED INDEX IX_Customer_Email
-   ON Customer (Email)
-
-GO
 -- DROP INDEX Customer.IX_Customer_Firstname;
--- DROP INDEX Customer.IX_Customer;
+-- DROP INDEX Customer.IX_Customer_Lastname;
 
 -- Test Query Worksheet Data (Index check)
 -- SELECT * FROM Worksheet WHERE WorksheetNumber = 'WS-HU000103'
@@ -1371,3 +1368,13 @@ INNER JOIN Customer C ON C.CustomerID = W.CustomerID
 INNER JOIN Service S ON S.ServiceCode = W.ServiceCode
 INNER JOIN Worksheet WS ON WS.ServiceCode = S.ServiceCode
 WHERE C.FirstName = 'Attila' AND W.ServiceCode = 1 AND WS.WorksheetRecorderID='1'
+
+-- Check Indexe  Usage Stats
+SELECT OBJECT_NAME(OBJECT_ID) TableName, *
+FROM sys.dm_db_index_usage_stats
+WHERE database_id = DB_ID() 
+ORDER BY 1,4
+
+-- Check Indexe  Physical Stats
+SELECT OBJECT_NAME(OBJECT_ID) TableName, *
+FROM sys.dm_db_index_physical_stats(DB_ID(),NULL,NULL,NULL, 'DETAILED')
