@@ -513,6 +513,12 @@ AS SELECT TOP 1 value FROM STRING_SPLIT('Nem indul a windows 10,Nem indul a wind
 -- SELECT * FROM vRandomJobDescription
 
 GO
+CREATE OR ALTER VIEW vRandomExternalJobDescription
+AS SELECT TOP 1 value FROM STRING_SPLIT('Internet bekötés,Fejállomás építés', ',') order by newid()
+
+-- SELECT * FROM vRandomExternalJobDescription
+
+GO
 CREATE OR ALTER VIEW vRandomWorkerDescription
 AS SELECT TOP 1 value FROM STRING_SPLIT('Valami megjegyzés .,Valami megjegyzés ..,Valami megjegyzés ...', ',') order by newid()
 
@@ -636,17 +642,52 @@ AS
 	BEGIN
 	DECLARE @i int 
 	SET @i = 0
-	DECLARE @Worksheetrecorder int,@CustomerID int,@SiteCode int,@ExteranJobDescription varchar(120),@DeviceName varchar(120),@DeviceSerialNumber varchar(100),@JobDescription varchar(120),@ServiceCode int
+	DECLARE @Worksheetrecorder int,@CustomerID int,@SiteCode int,@DeviceName varchar(120),@DeviceSerialNumber varchar(100),@JobDescription varchar(120),@ServiceCode int, @RandomStatusCode tinyint, @isExternal tinyint,@RandomExternalJobDescription varchar(120)
 	WHILE @i < @count
 	BEGIN
 		-- PRINT 'Debug';
 		SET @i = @i + 1
 		SET @CustomerID = (SELECT dbo.ReturnRandFromTo(7,2800))
 		SET @ServiceCode = (SELECT dbo.ReturnRandFromTo(1,3))
-		SET @DeviceName = (SELECT * FROM vRandomDeviceType)
-		SET @DeviceSerialNumber = (SELECT dbo.ReturnRandFromTo(35000,95000))
-		SET @JobDescription = (SELECT * FROM vRandomJobDescription)
-		
+		SET @RandomStatusCode = (SELECT dbo.ReturnRandFromTo(1,3))
+
+		-- Creating some more demo data (external worksheet too)
+		SET @isExternal = (SELECT dbo.ReturnRandFromTo(0,1))
+		DECLARE @wcount int, @RandomWorkId int, @RandomQuantity int
+		SET @wcount = 0
+			IF @isExternal = 1
+			BEGIN
+				SET @RandomQuantity =1
+				SET @DeviceName = NULL
+				SET @DeviceSerialNumber = NULL
+				SET @JobDescription = NULL
+				SET @wcount = 1
+				SET @RandomExternalJobDescription = (SELECT * FROM vRandomExternalJobDescription)
+					BEGIN
+						-- (@RandomWorkId 6,7 = GPON, DSL internet bekötés )
+							IF @RandomExternalJobDescription = 'Internet bekötés'
+							BEGIN
+								SET @RandomWorkId = (SELECT dbo.ReturnRandFromTo(6,7))
+							END
+							-- (@RandomWorkId 9  = Fejállomás építés )
+							 IF @RandomExternalJobDescription = 'Fejállomás építés'
+							 BEGIN
+								SET @RandomWorkId = 9
+							 END
+					END
+			END
+		ELSE
+		BEGIN
+		-- If we have internal worksheet
+			SET @RandomExternalJobDescription = NULL
+			SET @JobDescription = (SELECT * FROM vRandomJobDescription)
+			SET @DeviceName = (SELECT * FROM vRandomDeviceType)
+			SET @DeviceSerialNumber = (SELECT dbo.ReturnRandFromTo(35000,95000))
+		-- (@RandomWorkId 4,5 = Bevizsgálás / Szoftver telepítés )
+			SET @RandomWorkId = (SELECT dbo.ReturnRandFromTo(4,5))
+		    SET @wcount = (SELECT dbo.ReturnRandFromTo(1,3))
+			SET @RandomQuantity = (SELECT dbo.ReturnRandFromTo(1,3))
+		 END
 		-- Get Country Code for Worksheet Number
 		DECLARE @CountryCode char(2)
 		SET @CountryCode = (SELECT DISTINCT A.CountryCode FROM Service S 
@@ -660,14 +701,14 @@ AS
 		DECLARE @Worksheetnumber varchar(12)
 		SET @Worksheetnumber = (SELECT dbo.GenerateWorksheetNumber(@pr))
 	
-		INSERT INTO dbo.Worksheet VALUES(@Worksheetrecorder,@CustomerID,@SiteCode,@Worksheetnumber,0,@ExteranJobDescription, (SELECT dbo.RandomDateTime('2015-01-01 08:00:00','2023-03-26 18:00:00')),@DeviceName,@DeviceSerialNumber,@JobDescription,@ServiceCode,0,0,NULL,NULL)
+		INSERT INTO dbo.Worksheet VALUES(@Worksheetrecorder,@CustomerID,@SiteCode,@Worksheetnumber,@isExternal,@RandomExternalJobDescription, (SELECT dbo.RandomDateTime('2015-01-01 08:00:00','2023-03-26 18:00:00')),@DeviceName,@DeviceSerialNumber,@JobDescription,@ServiceCode,0,0,@RandomStatusCode,NULL)
 		
 		-- Get the last WorksheetID
 		DECLARE @WorksheetId int
 		SET @WorksheetId = (SELECT SCOPE_IDENTITY())
 		--Debug Print @WorksheetId
 
-		DECLARE @RandomWorkId int, @RandomQuantity int, @RandomWorkerDescription varchar(120)	
+		DECLARE @RandomWorkerDescription varchar(120)	
 		DECLARE @ModifiedCompletionTime datetime
 		DECLARE @TimeOfIssue datetime
 
@@ -675,17 +716,13 @@ AS
 		SET @ModifiedCompletionTime = (SELECT DATEADD(HOUR,-3,@TimeOfIssue))
 
 		-- Add random data to worksheet detail based on worksheetID
-		DECLARE @wi int, @wcount int
+		DECLARE @wi int
 		SET @wi = 0
-		SET @wcount = (SELECT dbo.ReturnRandFromTo(1,3))
 		
 		WHILE @wi < @wcount
 		BEGIN
 			SET @wi = @wi + 1
 			SET @Worksheetrecorder =  (SELECT dbo.ReturnRandFromTo(1,2))
-			-- (@RandomWorkId 4,5 = Bevizsgálás / Szoftver telepítés )
-			SET @RandomWorkId = (SELECT dbo.ReturnRandFromTo(4,5))
-			SET @RandomQuantity = (SELECT dbo.ReturnRandFromTo(1,3))
 			SET @RandomWorkerDescription = (SELECT * FROM vRandomWorkerDescription)
 			EXEC AddRandomWorkToWorksheet @WorksheetID = @WorksheetId, @WorkerID = @Worksheetrecorder, @WorkID = @RandomWorkId, @Quantity = @RandomQuantity, @WorkerDescription = @RandomWorkerDescription, @CompletionTIme = @ModifiedCompletionTime
 		END
@@ -1105,8 +1142,10 @@ INSERT INTO WorksheetDetail VALUES(2,2,5,2,NULL,NULL)
 
 -- Get Works BY Worksheet Number
 
-EXEC GetWorksByWorksheetNumber @Worksheetnumber ='WS-HU000001'
-EXEC GetWorksByWorksheetNumber @Worksheetnumber ='WS-HU000002'
+EXEC GetWorksByWorksheetNumber @Worksheetnumber ='WS-HU000017'
+EXEC GetWorksByWorksheetNumber @Worksheetnumber ='WS-AT000056'
+
+-- SELECT * FROM Worksheet W WHERE W.IsExternal = 1
 
 
 -- Adding B2B Partners
@@ -1178,7 +1217,7 @@ INSERT INTO AssetStock VALUES (1,2,1,2,2,2,NULL,7891011,3,20000,50,50,1)
 
 -- Get Stock elements By Component ID (For exampl 1 = WD SN750 NVMe 1TB SSD)
 
-SELECT S.AssetID,C.B2bPartnerName AS BuyFromB2B,AP.PurchaseDate,SR.ServiceName,AP.BillNumber,S.SerialNumber,AC.ComponentName,S.ListPrice,S.VatID,S.VatID2,S.VatID3, AC.SellPrice 
+SELECT S.AssetID,C.B2bPartnerName AS BuyFromB2B,AP.PurchaseDate,SR.ServiceName,AP.BillNumber,S.SerialNumber,AC.ComponentName,S.ListPrice,DV.VATName,DV.VATNameDE,DV.VATNameEN, AC.SellPrice 
 FROM AssetStock S
 INNER JOIN AssetComponent AC ON AC.ComponentID = S.ComponentID
 INNER JOIN AssetPurchase AP ON AP.PurchaseID = S.PurchaseID
@@ -1288,11 +1327,12 @@ END
 WHILE @i < @count
 
 	BEGIN 
-	DECLARE @RandomEmailProvider varchar(50)
+	DECLARE @RandomEmailProvider varchar(50), @RandomEmailNumber varchar(3)
 	SET @RandomEmailProvider = (SELECT * FROM vRandomMailProvider)
+	SET @RandomEmailNumber = (SELECT CAST(dbo.ReturnRandFromTo(0,255) AS VARCHAR(3)))
 	SET @i = @i + 1
 	DROP TABLE IF EXISTS #TempData
-	SELECT TOP 1 N.Lastname,N2.Firstname, CONCAT(dbo.AccentConverter(N.Lastname), + '.', dbo.AccentConverter(Firstname), + @RandomEmailProvider) AS Email,dbo.GenerateRandomPhoneNumber() AS PhoneNumber  
+	SELECT TOP 1 N.Lastname,N2.Firstname, CONCAT(dbo.AccentConverter(N.Lastname), + '.', dbo.AccentConverter(Firstname) + @RandomEmailNumber, + @RandomEmailProvider) AS Email,dbo.GenerateRandomPhoneNumber() AS PhoneNumber  
 	INTO #TempData
 	FROM #Names2 N2
 	CROSS JOIN #Names N 
@@ -1358,24 +1398,31 @@ SELECT * FROM Customer WHERE PhoneNumber = '+3620 348-1070'
 
 
 -- Index
-GO
-CREATE NONCLUSTERED INDEX IX_Customer_Firstname
-   ON Customer (Firstname) INCLUDE (MiddleName,LastName)
 
 GO
-CREATE NONCLUSTERED INDEX IX_Customer_Lastname
-   ON Customer (LastName) INCLUDE (Firstname,MiddleName)
+
+CREATE NONCLUSTERED INDEX IX_Customer_Firstname ON Customer (Firstname) INCLUDE (MiddleName,LastName)
 GO
 
--- DROP INDEX Customer.IX_Customer_Firstname;
--- DROP INDEX Customer.IX_Customer_Lastname;
+-- DROP INDEX [IX_Customer_Firstname] ON [dbo].[Customer]
+GO
+
+CREATE NONCLUSTERED INDEX IX_WorksheetID ON  WorksheetDetail(WorksheetID) INCLUDE(WorkerID,WorkID,Quantity,WorkerDescription)
+GO
+
+-- DROP INDEX [IX_WorksheetID] ON [dbo].[WorksheetDetail]
+GO
+
 
 -- Test Query Worksheet Data (Index check)
 -- SELECT * FROM Worksheet WHERE WorksheetNumber = 'WS-HU000103'
 -- EXEC GetWorksheetBasicData @Worksheetnumber='WS-AT000056'
 GO
+
 CREATE NONCLUSTERED INDEX IX_WorksheetID ON  WorksheetDetail(WorksheetID) INCLUDE(WorkerID,WorkID,Quantity,WorkerDescription)
---DROP INDEX Customer.IX_WorksheetID;
+-- DROP INDEX [IX_WorksheetID] ON [dbo].[WorksheetDetail]
+GO
+
 
 -- Get multiple info for testing.
 SELECT * FROM Worker W 
@@ -1508,8 +1555,8 @@ W.WorksheetNumber,CONCAT (C.LastName + ' ', C.MiddleName + ' ' + C.FirstName)  A
 WO.WorkNameDE AS WorkName, IIF(WO.HourlyWorkPrice2 IS NULL,WO.Price2,WO.HourlyWorkPrice3) AS Price,WD.Quantity,
 CASE 
 	WHEN
-	WO.iSHourlyWork = 0 THEN WO.Price
-	ELSE WO.HourlyWorkPrice * WD.Quantity
+	WO.iSHourlyWork = 0 THEN WO.Price2
+	ELSE WO.HourlyWorkPrice2 * WD.Quantity
 END
 AS SubTotal, WD.WorkerDescription
 FROM Worksheet W
@@ -1532,8 +1579,8 @@ W.WorksheetNumber,CONCAT (C.LastName + ' ', C.MiddleName + ' ' + C.FirstName)  A
 WO.WorkNameEN AS WorkName, IIF(WO.HourlyWorkPrice3 IS NULL,WO.Price3,WO.HourlyWorkPrice3) AS Price,WD.Quantity,
 CASE 
 	WHEN
-	WO.iSHourlyWork = 0 THEN WO.Price
-	ELSE WO.HourlyWorkPrice * WD.Quantity
+	WO.iSHourlyWork = 0 THEN WO.Price3
+	ELSE WO.HourlyWorkPrice3 * WD.Quantity
 END
 AS SubTotal, WD.WorkerDescription
 FROM Worksheet W
@@ -1660,3 +1707,9 @@ GRANT INSERT ON dbo.Work TO WorkAdmin
 GRANT SELECT ON dbo.Work TO WorkAdmin
 GRANT UPDATE ON dbo.Work TO WorkAdmin
 GO
+
+--- Backup
+
+BACKUP DATABASE [WorkRouter] TO  DISK = N'C:\SQLDATA\Backup\WorkRouter.bak' WITH FORMAT, INIT,  MEDIADESCRIPTION = N'WorkRouter With demo data, compressed',  MEDIANAME = N'WorkRouter',  NAME = N'WorkRouter-Full Database Backup', SKIP, NOREWIND, NOUNLOAD, COMPRESSION,  STATS = 10
+GO
+
