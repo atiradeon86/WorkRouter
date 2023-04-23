@@ -1371,6 +1371,44 @@ WHILE @i < @count
 
 END
 
+
+GO
+-- Stored Procedure for cretating new customer
+-- Return 0 Insert Ok , 1 Empty name or phone or email, 2 Bad E-mail (Based on Regex function)
+
+CREATE OR ALTER PROCEDURE CreateCustomer
+ @FirstName varchar(30),@MiddleName varchar(20), @LastName varchar(20), @PhoneNumber varchar(20), @Email varchar(90), @isNewsletter bit
+AS
+IF (@FirstName ='' OR @LastName ='' OR @PhoneNumber =''  OR @Email ='')
+	RETURN 1
+
+DECLARE @password varchar(8)
+DECLARE @EmailCheck char(3)
+SET @Password =(SELECT LEFT(NEWID(),8))
+SET @EmailCheck = dbo.EmailCheck(@Email)
+
+IF @EmailCheck = 'Bad'
+	RETURN 2
+
+IF @MiddleName = ''
+SET @MiddleName = NULL
+
+INSERT INTO Customer VALUES (@FirstName,@MiddleName,@LastName,@Email,'1',@Password,@PhoneNumber,NULL,@isNewsletter,'0',NULL,0,0,NULL,0,NULL)
+RETURN 0
+
+
+-- Test
+DECLARE @Result int
+EXEC @Result =  CreateCustomer 'Kiss','Nagy','István','+36 20 358 1751','kiss.gmailcom','0'
+SELECT @Result
+
+DECLARE @Result int
+EXEC @Result =  CreateCustomer 'Kiss','Nagy','István','+36 20 358 1751','kiss@gmail.com','0'
+SELECT @Result
+
+-- SELECT * FROM Customer WHERE email = 'kiss@gmail.com'
+-- DELETE FROM Customer WHERE email = 'kiss@gmail.com'
+
 -- Creating some Demo Data ... :)
 GO
 EXEC CreateRandomCustomer @count = 3000
@@ -1712,4 +1750,3 @@ GO
 
 BACKUP DATABASE [WorkRouter] TO  DISK = N'C:\SQLDATA\Backup\WorkRouter.bak' WITH FORMAT, INIT,  MEDIADESCRIPTION = N'WorkRouter With demo data, compressed',  MEDIANAME = N'WorkRouter',  NAME = N'WorkRouter-Full Database Backup', SKIP, NOREWIND, NOUNLOAD, COMPRESSION,  STATS = 10
 GO
-
