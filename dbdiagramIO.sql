@@ -1,6 +1,5 @@
--- WorkRouter V0.3
+-- WorkRouter V0.4
 -- DBdiagram: https://dbdiagram.io/d/63f22373296d97641d82122c
-
 Table Customer {
   CustomerID int [pk, increment]
   FirstName varchar(30)
@@ -149,15 +148,15 @@ Table AssetStock {
   ComponentID smallint 
   PurchaseID int
   VatID tinyint
-  VatID2 tinyint
-  VatID3 tinyint
+  VatIdDE tinyint
+  VatIdEN tinyint
   ServiceCode int
   SiteCode smallint
   SerialNumber varchar(100)
   WarrantyYear tinyint
   ListPrice money
-  ListPrice2 money
-  ListPrice3 money
+  ListPriceDE money
+  ListPriceEN money
   Quantity tinyint
 }
 
@@ -177,8 +176,8 @@ Table AssetComponent {
   ComponentNameEN varchar(120)
   SubCategoryID tinyint
   SellPrice money
-  SellPrice2 money
-  SellPrice3 money
+  SellPriceDE money
+  SellPriceEN money
   ModifiedDate datetime
 }
 
@@ -215,14 +214,14 @@ Table Work {
   WorkSubCategoryID tinyint
   iSHourlyWork bit
   HourlyWorkPrice money
-  HourlyWorkPrice2 money
-  HourlyWorkPrice3 money
+  HourlyWorkPriceDE money
+  HourlyWorkPriceEN money
   VatID tinyint
-  VatID2 tinyint
-  VatID3 tinyint
+  VatIdDE tinyint
+  VatIdEN tinyint
   Price money
-  Price2 money
-  Price3 money
+  PriceDE money
+  PriceEN money
 }
 
 Table WorkSubcategory {
@@ -244,8 +243,7 @@ Table WorkCategory {
 
 
 Table Bill {
-  BillID int [pk, increment]
-  WorksheetID int
+  WorksheetID int [pk]
   SentStatus int
   PaymmentStatus varchar(20)
   TS Timestamp
@@ -335,10 +333,10 @@ Ref: "DictVAT"."VATID" < "AssetStock"."VatID"
 
 Ref: "DictVAT"."VATID" < "Work"."VatID"
 
-Ref: "DictVAT"."VATID" < "Work"."VatID2"
+Ref: "DictVAT"."VATID" < "Work"."VatIdDE"
 
-Ref: "DictVAT"."VATID" < "Work"."VatID3"
+Ref: "DictVAT"."VATID" < "Work"."VatIdEN"
 
-Ref: "DictVAT"."VATID" < "AssetStock"."VatID2"
+Ref: "DictVAT"."VATID" < "AssetStock"."VatIdDE"
 
-Ref: "DictVAT"."VATID" < "AssetStock"."VatID3"
+Ref: "DictVAT"."VATID" < "AssetStock"."VatIdEN"

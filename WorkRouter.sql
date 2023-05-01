@@ -1,4 +1,4 @@
--- WorkRouter V0.3
+-- WorkRouter V0.4
 -- DBdiagram: https://dbdiagram.io/d/63f22373296d97641d82122c
 -- This SQL script creates the database structure with randomly generated test data (Unique Customers,Addresses,Worksheets,Works)
 
@@ -180,15 +180,15 @@ CREATE TABLE AssetStock (
   ComponentID smallint NOT NULL,
   PurchaseID int NOT NULL,
   VatID tinyint NOT NULL,
-  VatID2 tinyint NOT NULL,
-  VatID3 tinyint NOT NULL,
+  VatIdDE tinyint NOT NULL,
+  VatIdEN tinyint NOT NULL,
   ServiceCode int,
   SiteCode smallint,
   SerialNumber varchar(100),
   WarrantyYear tinyint NOT NULL DEFAULT 1,
   ListPrice money,
-  ListPrice2 money,
-  ListPrice3 money,
+  ListPriceDE money,
+  ListPriceEN money,
   Quantity tinyint NOT NULL
 )
 
@@ -213,8 +213,8 @@ CREATE TABLE AssetComponent (
   ComponentNameEN varchar(120) NOT NULL UNIQUE,
   SubCategoryID tinyint,
   SellPrice money,
-  SellPrice2 money,
-  SellPrice3 money,
+  SellPriceDE money,
+  SellPriceEN money,
   ModifiedDate datetime
 )
 GO
@@ -255,14 +255,14 @@ CREATE TABLE Work (
   WorkSubCategoryID tinyint,
   iSHourlyWork bit DEFAULT 0,
   HourlyWorkPrice money,
-  HourlyWorkPrice2 money,
-  HourlyWorkPrice3 money,
+  HourlyWorkPriceDE money,
+  HourlyWorkPriceEN money,
   VatID tinyint NOT NULL,
-  VatID2 tinyint NOT NULL,
-  VatID3 tinyint NOT NULL,
+  VatIdDE tinyint NOT NULL,
+  VatIdEN tinyint NOT NULL,
   Price money,
-  Price2 money,
-  Price3 money
+  PriceDE money,
+  PriceEN money
 )
 GO
 
@@ -419,16 +419,16 @@ GO
 ALTER TABLE Work ADD FOREIGN KEY (VatID) REFERENCES DictVAT (VATID)
 GO
 
-ALTER TABLE Work ADD FOREIGN KEY (VatID2) REFERENCES DictVAT (VATID)
+ALTER TABLE Work ADD FOREIGN KEY (VatIdDE) REFERENCES DictVAT (VATID)
 GO
 
-ALTER TABLE Work ADD FOREIGN KEY (VatID3) REFERENCES DictVAT (VATID)
+ALTER TABLE Work ADD FOREIGN KEY (VatIdEN) REFERENCES DictVAT (VATID)
 GO
 
-ALTER TABLE AssetStock ADD FOREIGN KEY (VatID2) REFERENCES DictVAT (VATID)
+ALTER TABLE AssetStock ADD FOREIGN KEY (VatIdDE) REFERENCES DictVAT (VATID)
 GO
 
-ALTER TABLE AssetStock ADD FOREIGN KEY (VatID3) REFERENCES DictVAT (VATID)
+ALTER TABLE AssetStock ADD FOREIGN KEY (VatIdEN) REFERENCES DictVAT (VATID)
 GO
 
 /* Trigger */
@@ -499,6 +499,69 @@ BEGIN
 	INSERT INTO dbo.Worksheet VALUES(@Worksheetrecorder,@CustomerID,@SiteCode,@Worksheetnumber,0,@ExteranJobDescription,SYSDATETIME(),@DeviceName,@DeviceSerialNummber,@JobDescription,@ServiceCode,0,0,NULL,NULL)
 
 END
+
+
+-- Stat Worksheet (Year, Service, Worksheet Number)
+
+GO
+
+CREATE OR ALTER VIEW vStatWorksheet
+AS 
+SELECT *
+FROM (
+  SELECT S.ServiceName, YEAR(W.TimeOfIssue) AS Year, COUNT(WorksheetID) AS AllWorksheet 
+  FROM Worksheet W 
+  INNER JOIN Service S ON S.ServiceCode = W.ServiceCode 
+  WHERE YEAR(W.TimeOfIssue) BETWEEN 2015 AND 2023 
+  GROUP BY S.ServiceCode, S.ServiceName, YEAR(W.TimeOfIssue)
+) AS DataSource
+PIVOT (
+  SUM(AllWorksheet)
+  FOR Year IN ([2015],[2016],[2017],[2018],[2019], [2020], [2021], [2022], [2023])
+) AS WorksheetStat;
+
+-- SELECT * FROM vStatWorksheet
+
+-- Stat BuyerCard (Customer, Worksheet Number)
+
+GO
+
+CREATE OR ALTER VIEW vStatCustomerBuyerCard
+AS
+SELECT  W.CustomerID, CONCAT (C.LastName, ' ', C.FirstName) AS CustomName,CONCAT (A.PostalCode, ' ,', A.CityName, ' ,', A.AddressLine1) AS CustomerAddress, C.Email,C.PhoneNumber, Count(WorksheetID) AS Worksheets,HasBuyerCard AS BuyerCard FROM Worksheet W
+INNER JOIN Customer C ON C.CustomerID = W.CustomerID
+INNER JOIN Service S ON S.ServiceCode = W.ServiceCode
+INNER JOIN Address A ON A.CustomerID = W.CustomerID
+GROUP BY W.CustomerID,CONCAT (C.LastName, ' ', C.FirstName), A.PostalCode,A.CityName,A.AddressLine1, C.Email,C.PhoneNumber, C.HasBuyerCard
+
+-- SELECT * FROM vStatCustomerBuyerCard ORDER BY 6 DESC
+
+-- Stat BuyerCard (Customer Number / City)
+
+GO
+
+CREATE OR ALTER VIEW vStatCustomerCity
+AS
+SELECT PC.CityName, COUNT(C.CustomerID) AS CustomerNumber FROM PostalCode PC
+INNER JOIN Address A ON A.PostalCode = PC.PostalCode
+INNER JOIN Customer C ON C.CustomerID = A.CustomerID
+GROUP BY PC.CityName
+
+-- SELECT * FROM vStatCustomerCity ORDER BY 2 DESC
+
+-- Stat BuyerCard (Customer Number / County)
+
+GO
+
+CREATE OR ALTER VIEW vStatCustomerCounty
+AS
+SELECT DC.CountyName, COUNT(DISTINCT(C.CustomerID)) AS CustomerNumber FROM PostalCode PC
+INNER JOIN Address A ON A.PostalCode = PC.PostalCode
+INNER JOIN Customer C ON C.CustomerID = A.CustomerID
+INNER JOIN DictCounty DC ON DC.CountyID = PC.CountyID
+GROUP BY DC.CountyName
+
+-- SELECT * FROM vStatCustomerCounty ORDER BY 2 DESC
 
 GO
 
@@ -647,7 +710,7 @@ AS
 	BEGIN
 		-- PRINT 'Debug';
 		SET @i = @i + 1
-		SET @CustomerID = (SELECT dbo.ReturnRandFromTo(7,2800))
+		SET @CustomerID = (SELECT dbo.ReturnRandFromTo(7,2900))
 		SET @ServiceCode = (SELECT dbo.ReturnRandFromTo(1,3))
 		SET @RandomStatusCode = (SELECT dbo.ReturnRandFromTo(1,3))
 
@@ -812,19 +875,19 @@ CREATE OR ALTER PROCEDURE CreateWork
 @WorkSubCategoryID tinyint,
 @IsHourlyWork bit,
 @HourlyWorkPrice money,
-@HourlyWorkPrice2 money,
-@HourlyWorkPrice3 money,
+@HourlyWorkPriceDE money,
+@HourlyWorkPriceEN money,
 @VatID tinyint,
-@VatID2 tinyint,
-@VatID3 tinyint,
+@VatIdDE tinyint,
+@VatIdEN tinyint,
 @Price money,
-@Price2 money,
-@Price3 money
+@PriceDE money,
+@PriceEN money
 
 AS
-INSERT INTO Work(WorkCode,WorkName,WorkNameDE,WorkNameEN,WorkSubCategoryID,iSHourlyWork,HourlyWorkPrice,HourlyWorkPrice2,HourlyWorkPrice3,VatID,VatID2,VatID3,Price,Price2,Price3) 
+INSERT INTO Work(WorkCode,WorkName,WorkNameDE,WorkNameEN,WorkSubCategoryID,iSHourlyWork,HourlyWorkPrice,HourlyWorkPriceDE,HourlyWorkPriceEN,VatID,VatIdDE,VatIdEN,Price,PriceDE,PriceEN) 
 VALUES(
-@WorkCode,@WorkName,@WorkNameDE,@WorkNameEN,@WorkSubCategoryID,@IsHourlyWork,@HourlyWorkPrice,@HourlyWorkPrice2,@HourlyWorkPrice3,@VatID,@VatID2,@VatID3, @Price, @Price2,@Price3)
+@WorkCode,@WorkName,@WorkNameDE,@WorkNameEN,@WorkSubCategoryID,@IsHourlyWork,@HourlyWorkPrice,@HourlyWorkPriceDE,@HourlyWorkPriceEN,@VatID,@VatIdDE,@VatIdEN, @Price, @PriceDE,@PriceEN)
 
 GO
 
@@ -1534,7 +1597,9 @@ USE master
 GO
 
 CREATE LOGIN Client WITH PASSWORD= 'Demo1234'
+GO
 ALTER USER Client WITH DEFAULT_SCHEMA=app
+GO
 ALTER AUTHORIZATION ON SCHEMA::app TO Client
 GO
 
@@ -1590,11 +1655,11 @@ CREATE OR ALTER PROCEDURE app.GetWorksByWorksheetNumberDE
 AS
 SELECT
 W.WorksheetNumber,CONCAT (C.LastName + ' ', C.MiddleName + ' ' + C.FirstName)  AS Worker,
-WO.WorkNameDE AS WorkName, IIF(WO.HourlyWorkPrice2 IS NULL,WO.Price2,WO.HourlyWorkPrice3) AS Price,WD.Quantity,
+WO.WorkNameDE AS WorkName, IIF(WO.HourlyWorkPriceDE IS NULL,WO.PriceDE,WO.HourlyWorkPriceEN) AS Price,WD.Quantity,
 CASE 
 	WHEN
-	WO.iSHourlyWork = 0 THEN WO.Price2
-	ELSE WO.HourlyWorkPrice2 * WD.Quantity
+	WO.iSHourlyWork = 0 THEN WO.PriceDE
+	ELSE WO.HourlyWorkPriceDE * WD.Quantity
 END
 AS SubTotal, WD.WorkerDescription
 FROM Worksheet W
@@ -1614,11 +1679,11 @@ CREATE OR ALTER PROCEDURE app.GetWorksByWorksheetNumberEN
 AS
 SELECT
 W.WorksheetNumber,CONCAT (C.LastName + ' ', C.MiddleName + ' ' + C.FirstName)  AS Worker,
-WO.WorkNameEN AS WorkName, IIF(WO.HourlyWorkPrice3 IS NULL,WO.Price3,WO.HourlyWorkPrice3) AS Price,WD.Quantity,
+WO.WorkNameEN AS WorkName, IIF(WO.HourlyWorkPriceEN IS NULL,WO.PriceEN,WO.HourlyWorkPriceEN) AS Price,WD.Quantity,
 CASE 
 	WHEN
-	WO.iSHourlyWork = 0 THEN WO.Price3
-	ELSE WO.HourlyWorkPrice3 * WD.Quantity
+	WO.iSHourlyWork = 0 THEN WO.PriceEN
+	ELSE WO.HourlyWorkPriceEN * WD.Quantity
 END
 AS SubTotal, WD.WorkerDescription
 FROM Worksheet W
@@ -1748,5 +1813,8 @@ GO
 
 --- Backup
 
-BACKUP DATABASE [WorkRouter] TO  DISK = N'C:\SQLDATA\Backup\WorkRouter.bak' WITH FORMAT, INIT,  MEDIADESCRIPTION = N'WorkRouter With demo data, compressed',  MEDIANAME = N'WorkRouter',  NAME = N'WorkRouter-Full Database Backup', SKIP, NOREWIND, NOUNLOAD, COMPRESSION,  STATS = 10
+BACKUP DATABASE [WorkRouter] TO  DISK = N'C:\SQLDATA\Backup\WorkRouter-with-3000-customer.bak' WITH FORMAT, INIT,  MEDIADESCRIPTION = N'WorkRouter With demo data, compressed',  MEDIANAME = N'WorkRouter',  NAME = N'WorkRouter-Full Database Backup', SKIP, NOREWIND, NOUNLOAD, COMPRESSION,  STATS = 10
 GO
+
+
+

@@ -97,14 +97,14 @@ EXEC GetWorksByWorksheetNumber @Worksheetnumber='WS-AT000056'
 
 -- Route work to workers example
 
---SELECT * FROM worksheet W WHERE W.WorksheetNumber = 'WS-AT000056'
+--SELECT * FROM worksheet W WHERE W.WorksheetNumber = 'WS-AT000050'
 
--- INSERT INTO WorkerConnection VALUES(3,1,157)
--- INSERT INTO WorkerConnection VALUES(3,4,157)
+-- INSERT INTO WorkerConnection VALUES(2,1,172)
+-- INSERT INTO WorkerConnection VALUES(2,2,172)
 
-EXEC GetWorksheetBasicData @Worksheetnumber='WS-AT000056'
-EXEC GetWorksByWorksheetNumber @Worksheetnumber='WS-AT000056'
 
+EXEC GetWorksheetBasicData @Worksheetnumber='WS-AT000050'
+EXEC GetWorksByWorksheetNumber @Worksheetnumber='WS-AT000050'
 
 SELECT WS.WorksheetNumber,WS.ExternalJobDescription,
 CONCAT (CU.LastName,+' ', CU.MiddleName + ' ', Cu.FirstName) AS Customer, 
@@ -119,9 +119,7 @@ INNER JOIN Customer PR ON PR.CustomerID = WC.PrincipalWorkerID
 INNER JOIN Worksheet WS ON WS.WorksheetID = WC.WorksheetID
 INNER JOIN Customer CU ON CU.CustomerID = WS.CustomerID
 INNER JOIN Address A ON A.CustomerID = CU.CustomerID
-WHERE WS.WorksheetNumber = 'WS-AT000056'
-
-
+WHERE WS.WorksheetNumber = 'WS-AT000050'
 
 -- Multifunction Customer data handling for example B2BPartners
 
@@ -176,3 +174,17 @@ CREATE NONCLUSTERED INDEX IX_WorksheetID ON  WorksheetDetail(WorksheetID) INCLUD
 GO
 DROP INDEX [IX_WorksheetID] ON [dbo].[WorksheetDetail]
 GO
+
+-- Statistic (Views)
+
+-- Stat Worksheet (Year, Service, Worksheet Number)
+SELECT * FROM vStatWorksheet
+
+-- Stat BuyerCard (Customer, Worksheet Number)
+SELECT * FROM vStatCustomerBuyerCard ORDER BY 6 DESC
+
+-- Stat BuyerCard (Customer Number / City)
+SELECT * FROM vStatCustomerCity ORDER BY 2 DESC
+
+-- Stat BuyerCard (Customer Number / County)
+SELECT * FROM vStatCustomerCounty ORDER BY 2 DESC
