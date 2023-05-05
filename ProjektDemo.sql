@@ -89,8 +89,9 @@ EXEC GetWorksByWorksheetNumber @Worksheetnumber='WS-HU000002'
 EXEC GetUsedComponentsByWorksheetNumber @Worksheetnumber='WS-HU000002'
 
 -- Example external worksheet 
-EXEC GetWorksheetBasicData @Worksheetnumber='WS-HU001394'
-EXEC GetWorksByWorksheetNumber @Worksheetnumber='WS-HU001394'
+EXEC GetWorksheetBasicData @Worksheetnumber='WS-HU000458'
+EXEC GetWorksByWorksheetNumber @Worksheetnumber='WS-HU000458'
+
 
 EXEC GetWorksheetBasicData @Worksheetnumber='WS-AT000056'
 EXEC GetWorksByWorksheetNumber @Worksheetnumber='WS-AT000056'
@@ -99,8 +100,8 @@ EXEC GetWorksByWorksheetNumber @Worksheetnumber='WS-AT000056'
 
 --SELECT * FROM worksheet W WHERE W.WorksheetNumber = 'WS-AT000050'
 
--- INSERT INTO WorkerConnection VALUES(2,1,172)
--- INSERT INTO WorkerConnection VALUES(2,2,172)
+-- INSERT INTO WorkerConnection VALUES(2,1,175)
+-- INSERT INTO WorkerConnection VALUES(2,2,175)
 
 
 EXEC GetWorksheetBasicData @Worksheetnumber='WS-AT000050'
@@ -188,3 +189,15 @@ SELECT * FROM vStatCustomerCity ORDER BY 2 DESC
 
 -- Stat BuyerCard (Customer Number / County)
 SELECT * FROM vStatCustomerCounty ORDER BY 2 DESC
+
+-- E-mail Test Demo
+DECLARE @Result int
+EXEC @Result =  CreateCustomer 'Kiss','Nagy','István','+36 20 358 1751','kiss.gmailcom','0'
+SELECT @Result
+
+DECLARE @Result int
+EXEC @Result =  CreateCustomer 'Kiss','Nagy','István','+36 20 358 1751','kiss@gmail.com','0'
+SELECT @Result
+
+-- SELECT * FROM Customer WHERE email = 'kiss@gmail.com'
+-- DELETE FROM Customer WHERE email = 'kiss@gmail.com'

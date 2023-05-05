@@ -13,7 +13,7 @@ CREATE TABLE Customer (
   FirstName varchar(30),
   MiddleName varchar(30),
   LastName varchar(30),
-  Email varchar(90) UNIQUE,
+  Email varchar(90),
   PermitLogin bit DEFAULT 0,
   CustomerPassword varchar(8),
   PhoneNumber varchar(20) UNIQUE,
@@ -710,7 +710,7 @@ AS
 	BEGIN
 		-- PRINT 'Debug';
 		SET @i = @i + 1
-		SET @CustomerID = (SELECT dbo.ReturnRandFromTo(7,2900))
+		SET @CustomerID = (SELECT dbo.ReturnRandFromTo(7,100000))
 		SET @ServiceCode = (SELECT dbo.ReturnRandFromTo(1,3))
 		SET @RandomStatusCode = (SELECT dbo.ReturnRandFromTo(1,3))
 
@@ -1474,9 +1474,10 @@ SELECT @Result
 
 -- Creating some Demo Data ... :)
 GO
-EXEC CreateRandomCustomer @count = 3000
+--EXEC CreateRandomCustomer @count = 100000
+
 GO
-EXEC CreateRandomWorksheet 3200
+--EXEC CreateRandomWorksheet 105000
 
 -- SELECT * FROM Customer
 -- SELECT * FROM Worksheet
@@ -1813,8 +1814,6 @@ GO
 
 --- Backup
 
-BACKUP DATABASE [WorkRouter] TO  DISK = N'C:\SQLDATA\Backup\WorkRouter-with-3000-customer.bak' WITH FORMAT, INIT,  MEDIADESCRIPTION = N'WorkRouter With demo data, compressed',  MEDIANAME = N'WorkRouter',  NAME = N'WorkRouter-Full Database Backup', SKIP, NOREWIND, NOUNLOAD, COMPRESSION,  STATS = 10
+BACKUP DATABASE [WorkRouter] TO  DISK = N'C:\SQLDATA\Backup\WorkRouter-with-100000-customer-with-worksheets.bak' WITH FORMAT, INIT,  MEDIADESCRIPTION = N'WorkRouter With demo data, compressed',  MEDIANAME = N'WorkRouter',  NAME = N'WorkRouter-Full Database Backup', SKIP, NOREWIND, NOUNLOAD, COMPRESSION,  STATS = 10
 GO
-
-
 
