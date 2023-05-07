@@ -201,3 +201,18 @@ SELECT @Result
 
 -- SELECT * FROM Customer WHERE email = 'kiss@gmail.com'
 -- DELETE FROM Customer WHERE email = 'kiss@gmail.com'
+
+-- Demo Imported ADUser
+
+USE Workrouter
+GO
+
+GO
+EXEC LDAPImport
+
+SELECT * FROM AdImport
+SELECT * FROM Customer ORDER BY CustomerID DESC
+
+SELECT C.FirstName, C.LastName, Email, CountryCode, PostalCode, CityName,AddressLine1,PhoneNumber FROM Customer C
+INNER JOIN Address A ON A.CustomerID = C.CustomerID
+WHERE C.Firstname='ADUser'

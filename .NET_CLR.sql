@@ -8,6 +8,15 @@ RECONFIGURE;
 EXEC sp_configure 'clr strict security', 0;
 RECONFIGURE;
 
+ALTER DATABASE WorkRouter SET TRUSTWORTHY ON;
+
+-- Without these settings Assembly not working on another SQL Server!
+
+-- Change DB Owner
+USE WorkRouter
+GO
+EXEC sp_changedbowner 'sa'
+
 -- Creating Assembly 
 USE Workrouter
 GO
